@@ -1,0 +1,15 @@
+.overcommit.yml
+.rubocop.yml
+.scss-lint.yml
+.slim-lint.yml
+.ruby-version
+.jshintrc
+.jscsrc
+.idea/*
+.byebug_history
+.rake_tasks
+.env.local
+.autoenv.zsh
+*.swp
+.DS_Store
+.local.vimrc

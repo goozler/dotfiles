@@ -1,0 +1,11 @@
+# This is Git's per-user configuration file.
+[user]
+# Please adapt and uncomment the following lines:
+	name = Krutov Alex
+	email = goozler@mail.ru
+[push]
+	default = simple
+[alias]
+	cleanup = "!git branch --merged | grep -v '\\*' | grep -v master | grep -v dev | xargs -n 1 git branch -d"
+[core]
+	excludesfile = ~/.gitignore_global
