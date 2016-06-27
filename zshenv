@@ -1,3 +1,4 @@
+export KEYTIMEOUT=1
 export AUTOENV_IN_FILE='.zsh.env'
 export AUTOENV_OUT_FILE='.zsh.env.out'
 export FZF_DEFAULT_COMMAND="ag --hidden \
