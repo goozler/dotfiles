@@ -251,6 +251,9 @@ vnoremap <silent> <C-f> y :Ag <C-R>"<cr>
 vnoremap <silent> <Leader>f y :Ag <C-R>"<cr>
 nnoremap <silent> <Leader>` :Marks<cr>
 
+" YouCompleteMe
+let g:ycm_show_diagnostics_ui = 0
+
 " ======================================
 " CUSTOM MAPPINGS
 " ======================================
@@ -294,3 +297,6 @@ noremap , za
 " Replace findings
 vnoremap // y/<C-R>"<cr>
 nnoremap <Leader>r :%s/<C-R>//
+
+" Make & run in tmux pane
+nnoremap <silent> <F8> :call VimuxRunCommand('clear;make;./'.expand('%:r'))<CR>
