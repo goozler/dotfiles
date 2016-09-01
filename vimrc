@@ -28,6 +28,9 @@ Plug 'tpope/vim-bundler'
 Plug 'thinca/vim-localrc'
 Plug 'dkprice/vim-easygrep'
 
+" Databases
+Plug 'vim-scripts/dbext.vim'
+
 " Lint
 Plug 'scrooloose/syntastic' " , { 'on': 'SyntasticCheck' }
 
@@ -253,6 +256,9 @@ nnoremap <silent> <Leader>` :Marks<cr>
 
 " YouCompleteMe
 let g:ycm_show_diagnostics_ui = 0
+
+" dbext
+let g:dbext_default_type = 'ODBC'
 
 " ======================================
 " CUSTOM MAPPINGS
