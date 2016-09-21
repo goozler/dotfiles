@@ -42,6 +42,9 @@ Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
 Plug 'jonathanfilip/vim-lucius' " color scheme
 
+" Documentation
+Plug 'danchoi/ri.vim'
+
 " Git
 Plug 'tpope/vim-fugitive'
 if v:version >= 703
@@ -81,7 +84,7 @@ set shortmess=aIT " short messages
 set ve=block " allow put the cursor anyway in visual block mode
 set nojs " insert only one space after . ? ! with a join command
 set pastetoggle=<F9>
-set synmaxcol=1000
+set synmaxcol=120
 set nosol " keep the cursor in the same column when jump in file
 
 " Mouse
@@ -260,6 +263,11 @@ let g:ycm_show_diagnostics_ui = 0
 " dbext
 let g:dbext_default_type = 'ODBC'
 
+" ri.vim
+let g:ri_no_mappings=1
+nnoremap <Leader>ri :call ri#OpenSearchPrompt(0)<cr> " horizontal split
+nnoremap <Leader>rk :call ri#LookupNameUnderCursor()<cr> " keyword lookup
+
 " ======================================
 " CUSTOM MAPPINGS
 " ======================================
@@ -306,3 +314,7 @@ nnoremap <Leader>r :%s/<C-R>//
 
 " Make & run in tmux pane
 nnoremap <silent> <F8> :call VimuxRunCommand('clear;make;./'.expand('%:r'))<CR>
+
+" Remap ctrl-p ctrl-n
+inoremap <C-j> <C-n>
+inoremap <C-k> <C-p>
