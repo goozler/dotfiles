@@ -52,7 +52,8 @@ ZSH_THEME="goozler"
 plugins=(git rails rake rake-fast brew brew-cask bundler capistrano z history heroku gem per-directory-history autoenv npm ocx nyan tmux)
 
 # User configuration
-export PATH="/usr/local/bin:/Users/goozler/.rbenv/bin:/Users/goozler/.rbenv/shims:/Users/goozler/.rbenv/shims:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/X11/bin"
+export PATH="/usr/local/bin:/usr/local/sbin:/Users/goozler/.rbenv/bin:/Users/goozler/.rbenv/shims:/Users/goozler/.rbenv/shims:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/X11/bin:$PATH"
+
 # export MANPATH="/usr/local/man:$MANPATH"
 
 source $ZSH/oh-my-zsh.sh
