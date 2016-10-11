@@ -1,0 +1,69 @@
+# Use this file to configure the Overcommit hooks you wish to use. This will
+# extend the default configuration defined in:
+# https://github.com/brigade/overcommit/blob/master/config/default.yml
+#
+# At the topmost level of this YAML file is a key representing type of hook
+# being run (e.g. pre-commit, commit-msg, etc.). Within each type you can
+# customize each hook, such as whether to only run it on certain files (via
+# `include`), whether to only display output if it fails (via `quiet`), etc.
+#
+# For a complete list of hooks, see:
+# https://github.com/brigade/overcommit/tree/master/lib/overcommit/hook
+#
+# For a complete list of options that you can use to customize hooks, see:
+# https://github.com/brigade/overcommit#configuration
+#
+# Uncomment the following lines to make the configuration take effect.
+
+CommitMsg:
+  HardTabs:
+    enabled: true
+  RussianNovel:
+    enabled: true
+
+PreCommit:
+  ALL:
+    problem_on_unmodified_line: ignore
+  BundleCheck:
+    enabled: true
+  CoffeeLint:
+    enabled: true
+  CssLint:
+    enabled: true
+    exclude: vendor/assets/stylesheets/**/*
+  HamlLint:
+    enabled: true
+  HardTabs:
+    enabled: true
+    exclude: vendor/**/*
+  ImageOptim:
+    enabled: true
+  JsHint:
+    enabled: true
+    exclude: vendor/assets/javascripts/**/*
+  RailsSchemaUpToDate:
+    enabled: true
+  RuboCop:
+    enabled: true
+  ScssLint:
+    enabled: true
+  SlimLint:
+    enabled: true
+  TrailingWhitespace:
+    enabled: true
+    exclude:
+      - vendor/**/*
+      - features/vcr/**/*
+  YamlSyntax:
+    enabled: true
+
+PrePush:
+  RSpec:
+    enabled: true
+
+PostCheckout:
+  ALL: # Special hook name that customizes all hooks of this type
+    quiet: true # Change all post-checkout hooks to only display output on failure
+  IndexTags:
+    enabled: true # Generate a tags file with `ctags` each time HEAD changes
+

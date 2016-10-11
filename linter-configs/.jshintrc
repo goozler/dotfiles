@@ -1,0 +1,20 @@
+{
+  "bitwise": true,
+  "curly": true,
+  "eqeqeq": true,
+  "forin": true,
+  "freeze": true,
+  "funcscope": true,
+  "iterator": true,
+  "maxcomplexity": 4,
+  "noarg": true,
+  "nocomma": true,
+  "nonbsp": true,
+  "nonew": true,
+  "notypeof": true,
+  "shadow": true,
+  "singleGroups": true,
+  "strict": true,
+  "undef": true,
+  "unused": true
+}

@@ -1,0 +1,45 @@
+AllCops:
+  Include:
+    - '**/Gemfile'
+    - '**/Rakefile'
+  Exclude:
+   - 'bin/*'
+   - 'db/seeds.rb'
+   - 'db/schema.rb'
+   - 'vendor/bundle/**/*'
+Rails:
+  Enabled: true
+Style/Documentation:
+  Exclude:
+    - 'db/migrate/*'
+    - 'app/controllers/**/*'
+    - 'app/helpers/**/*'
+    - 'app/models/**/*'
+    - 'app/abilities/*'
+    - 'config/application.rb'
+    - 'config/initializers/*'
+    - 'spec/**/*'
+Metrics/MethodLength:
+  Max: 15
+  Exclude:
+    - 'db/migrate/*'
+    - 'app/models/ability.rb'
+Metrics/LineLength:
+  Exclude:
+    - 'config/initializers/devise.rb'
+    - 'config/environments/*'
+    - 'config/application.rb'
+    - 'spec/rails_helper.rb'
+    - 'spec/spec_helper.rb'
+    - 'config/initializers/simple_form*.rb'
+    - 'db/migrate/*'
+Style/ClassAndModuleChildren:
+  Exclude:
+    - 'app/controllers/**/*'
+    - 'app/models/**/*'
+    - 'test/**/*'
+Metrics/AbcSize:
+  Exclude:
+    - 'app/models/ability.rb'
+    - 'db/migrate/*'
+  Max: 25
