@@ -277,7 +277,9 @@ let g:slime_target = "tmux"
 let g:slime_default_config = {"socket_name": "default", "target_pane": ":1.2"}
 
 " maximazer
-let g:maximizer_default_mapping_key = '<leader>z'
+let g:maximizer_set_default_mapping = 0
+nnoremap <silent><leader>z :MaximizerToggle!<CR>
+vnoremap <silent><leader>z :MaximizerToggle!<CR>gv
 
 " ======================================
 " CUSTOM MAPPINGS

@@ -12,13 +12,14 @@ for file in "${FILES[@]}"; do
 done
 
 if [[ `uname -n` == ubuntu* ]]; then
-  sudo apt-get install -yqq python-software-properties software-properties-common
+  # sudo apt-get install -yqq python-software-properties software-properties-common
 
-  sudo add-apt-repository -y ppa:jonathonf/vim
-  sudo add-apt-repository -y ppa:pi-rho/dev
-  sudo apt-get update -yqq
+  # sudo add-apt-repository -y ppa:jonathonf/vim
+  # sudo add-apt-repository -y ppa:pi-rho/dev
+  # sudo apt-get update -yqq
 
-  sudo apt-get install -y curl git silversearcher-ag vim zsh
+  # sudo apt-get install -y curl git silversearcher-ag vim zsh
+  sudo apt-get install -y curl zsh
 
   # tmux
   sudo apt-get install -yqq tmux-next=2.3~20161115~bzr3615+20-1ubuntu1~ppa0~ubuntu14.04.1
@@ -28,5 +29,6 @@ fi
 git config --global user.email "goozler@gmail.com"
 git config --global user.name "Alex Krutov"
 
-./install-tmux.sh
+# ./install-tmux.sh
 # ./install-vim.sh
+./install-oh-my-zsh.sh

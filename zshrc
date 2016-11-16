@@ -1,5 +1,20 @@
 # Path to your oh-my-zsh installation.
-export ZSH=/Users/goozler/.oh-my-zsh
+export ZSH=$HOME/.oh-my-zsh
+
+source ~/.zplug/init.zsh
+zplug "Tarrasch/zsh-autoenv"
+zplug "zplug/zplug"
+
+# Install plugins if there are plugins that have not been installed
+if ! zplug check --verbose; then
+  printf "Install? [y/N]: "
+  if read -q; then
+    echo; zplug install
+  fi
+fi
+
+# Then, source plugins and add commands to $PATH
+zplug load
 
 # Set name of the theme to load.
 # Look in ~/.oh-my-zsh/themes/
@@ -51,7 +66,7 @@ ZSH_THEME="goozler"
 # Add wisely, as too many plugins slow down shell startup.
 
 plugins=(git rails rake rake-fast brew brew-cask capistrano z history heroku \
-         gem per-directory-history autoenv npm ocx nyan tmux \
+         gem per-directory-history npm ocx tmux \
          docker docker-compose vagrant)
 
 # User configuration
