@@ -14,8 +14,19 @@ FILES=(
 
 for file in "${FILES[@]}"; do
   if [ -f "$HOME/.$file" ]; then
-    mv $HOME/.$file $HOME/.$file.old
+    mv -pv $HOME/.$file $HOME/.$file.old
   fi
 
-  ln -s $PWD/$file $HOME/.$file
+  ln -sfv $PWD/$file $HOME/.$file
 done
+
+if [[ `uname -n` == ubuntu* ]]; then
+  apt-get install -y curl git silversearcher-ag tmux vim zsh
+fi
+
+git config --global user.email "goozler@gmail.com"
+git config --global user.name "Alex Krutov"
+
+tmux source-file ~/.tmux.conf
+
+./install-vim.sh

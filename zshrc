@@ -51,7 +51,8 @@ ZSH_THEME="goozler"
 # Add wisely, as too many plugins slow down shell startup.
 
 plugins=(git rails rake rake-fast brew brew-cask capistrano z history heroku \
-         gem per-directory-history autoenv npm ocx nyan tmux docker docker-compose)
+         gem per-directory-history autoenv npm ocx nyan tmux \
+         docker docker-compose vagrant)
 
 # User configuration
 export PATH="/usr/local/bin:"\
