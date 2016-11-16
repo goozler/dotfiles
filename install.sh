@@ -2,26 +2,28 @@
 
 cd `dirname "$0"`
 
-FILES=(
-"ackrc"
-"gitconfig"
-"gitignore_global"
-"tmux.conf"
-"vimrc"
-"zshenv"
-"zshrc"
-)
+FILES=("ackrc" "gitconfig" "gitignore_global" "tmux.conf" "vimrc" "zshenv" "zshrc")
 
 for file in "${FILES[@]}"; do
   if [ -f "$HOME/.$file" ]; then
-    mv -pv $HOME/.$file $HOME/.$file.old
+    mv -v $HOME/.$file $HOME/.$file.old
   fi
 
   ln -sfv $PWD/$file $HOME/.$file
 done
 
 if [[ `uname -n` == ubuntu* ]]; then
-  sudo apt-get install -y curl git silversearcher-ag tmux vim zsh
+  sudo apt-get install -yqq python-software-properties software-properties-common
+
+  sudo add-apt-repository -y ppa:jonathonf/vim
+  sudo add-apt-repository -y ppa:pi-rho/dev
+  sudo apt-get update -yqq
+
+  sudo apt-get install -y curl git silversearcher-ag vim zsh
+
+  # tmux
+  sudo apt-get install -yqq tmux-next=2.3~20161115~bzr3615+20-1ubuntu1~ppa0~ubuntu14.04.1
+  sudo ln -s /usr/bin/tmux-next /usr/bin/tmux
 fi
 
 git config --global user.email "goozler@gmail.com"
@@ -29,4 +31,4 @@ git config --global user.name "Alex Krutov"
 
 tmux source-file ~/.tmux.conf
 
-./install-vim.sh
+# ./install-vim.sh
