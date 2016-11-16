@@ -22,4 +22,4 @@ for file in "${THEMES[@]}"; do
 done
 
 curl -sL zplug.sh/installer | zsh
-zplug install
+zsh

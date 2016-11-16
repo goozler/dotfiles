@@ -117,7 +117,6 @@ fpath=(/usr/local/share/zsh-completions $fpath)
 alias be='bundle exec'
 alias gups='gaa && gsta && gup && gstp && g reset'
 alias rdpristine="rdd && rdc && rdm"
-alias ctags="`brew --prefix`/bin/ctags"
 alias j=z
 alias jj=zz
 
