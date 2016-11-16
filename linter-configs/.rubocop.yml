@@ -43,3 +43,5 @@ Metrics/AbcSize:
     - 'app/models/ability.rb'
     - 'db/migrate/*'
   Max: 25
+Style/FrozenStringLiteralComment:
+  Enabled: false

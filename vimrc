@@ -27,6 +27,10 @@ Plug 'tpope/vim-rails'
 Plug 'tpope/vim-bundler'
 Plug 'thinca/vim-localrc'
 Plug 'dkprice/vim-easygrep'
+Plug 'DataWraith/auto_mkdir'
+Plug 'jpalardy/vim-slime'
+Plug 'szw/vim-maximizer'
+Plug 'tpope/vim-obsession'
 
 " Databases
 Plug 'vim-scripts/dbext.vim'
@@ -267,6 +271,13 @@ let g:dbext_default_type = 'ODBC'
 let g:ri_no_mappings=1
 nnoremap <Leader>ri :call ri#OpenSearchPrompt(0)<cr> " horizontal split
 nnoremap <Leader>rk :call ri#LookupNameUnderCursor()<cr> " keyword lookup
+
+" slime
+let g:slime_target = "tmux"
+let g:slime_default_config = {"socket_name": "default", "target_pane": ":1.2"}
+
+" maximazer
+let g:maximizer_default_mapping_key = '<leader>z'
 
 " ======================================
 " CUSTOM MAPPINGS

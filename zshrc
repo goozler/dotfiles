@@ -49,10 +49,22 @@ ZSH_THEME="goozler"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git rails rake rake-fast brew brew-cask bundler capistrano z history heroku gem per-directory-history autoenv npm ocx nyan tmux)
+
+plugins=(git rails rake rake-fast brew brew-cask capistrano z history heroku \
+         gem per-directory-history autoenv npm ocx nyan tmux docker docker-compose)
 
 # User configuration
-export PATH="/usr/local/bin:/usr/local/sbin:/Users/goozler/.rbenv/bin:/Users/goozler/.rbenv/shims:/Users/goozler/.rbenv/shims:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/X11/bin:$PATH"
+export PATH="/usr/local/bin:"\
+"/usr/local/sbin:"\
+"$HOME/.rbenv/bin:"\
+"$HOME/.rbenv/shims:"\
+"/usr/bin:"\
+"/bin:"\
+"/usr/sbin:"\
+"/sbin:"\
+"/usr/local/bin:"\
+"/opt/X11/bin:"\
+"$PATH"
 
 # export MANPATH="/usr/local/man:$MANPATH"
 
@@ -78,8 +90,6 @@ export EDITOR='vim'
 fpath=(/usr/local/share/zsh-completions $fpath)
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-eval "$(thefuck --alias)"
-
 # Set personal aliases, overriding those provided by oh-my-zsh libs,
 # plugins, and themes. Aliases can be placed here, though oh-my-zsh
 # users are encouraged to define aliases within the ZSH_CUSTOM folder.
@@ -88,9 +98,13 @@ eval "$(thefuck --alias)"
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
+alias be='bundle exec'
+alias gups='gaa && gsta && gup && gstp && g reset'
 alias rdpristine="rdd && rdc && rdm"
 alias ctags="`brew --prefix`/bin/ctags"
 alias j=z
 alias jj=zz
+
+if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
