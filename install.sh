@@ -1,5 +1,4 @@
 #!/bin/bash
-
 cd `dirname "$0"`
 
 FILES=("ackrc" "gitconfig" "gitignore_global" "tmux.conf" "vimrc" "zshenv" "zshrc")
@@ -29,6 +28,5 @@ fi
 git config --global user.email "goozler@gmail.com"
 git config --global user.name "Alex Krutov"
 
-tmux source-file ~/.tmux.conf
-
+./install-tmux.sh
 # ./install-vim.sh
