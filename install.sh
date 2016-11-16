@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cd `dirname "$0"`
 
@@ -21,7 +21,7 @@ for file in "${FILES[@]}"; do
 done
 
 if [[ `uname -n` == ubuntu* ]]; then
-  apt-get install -y curl git silversearcher-ag tmux vim zsh
+  sudo apt-get install -y curl git silversearcher-ag tmux vim zsh
 fi
 
 git config --global user.email "goozler@gmail.com"
