@@ -1,4 +1,0 @@
---ignore-dir=.idea/
---ignore-dir=node_modules/
---ignore-dir=test/files
---ignore-dir=features/vcr/*
