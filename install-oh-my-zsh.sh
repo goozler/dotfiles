@@ -12,6 +12,7 @@ for file in "${FILES[@]}"; do
   ln -sfv $PWD/oh_my_zsh/$file.sh $HOME/.oh-my-zsh/custom/$file.sh
 done
 
+mkdir -p $HOME/.oh-my-zsh/custom/themes
 THEMES=("goozler")
 for file in "${THEMES[@]}"; do
   if [ -f "$HOME/.oh-my-zsh/custom/themes/$file.zsh-theme" ]; then
@@ -22,4 +23,10 @@ for file in "${THEMES[@]}"; do
 done
 
 curl -sL zplug.sh/installer | zsh
-zsh
+
+if [ -f "$HOME/.zshrc" ]; then
+  mv -v $HOME/.zshrc $HOME/.$file.zshrc
+fi
+ln -sfv $PWD/zshrc $HOME/.zshrc
+
+zsh -c 'zplug install'
