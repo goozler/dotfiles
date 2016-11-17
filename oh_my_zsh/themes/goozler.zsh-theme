@@ -18,11 +18,22 @@ rbenv_version() {
 }
 
 node_version() {
-    echo "%{$fg[yellow]%}[$(node --version | sed 's/^v//')]%{$reset_color%}"
+  echo "%{$fg[yellow]%}[$(node --version | sed 's/^v//')]%{$reset_color%}"
 }
 
 # Combine it all into a final right-side prompt
-RPS1='$(git_custom_status) $(rbenv_version) $(node_version)$EPS1'
+string='$(git_custom_status)'
+
+if which rbenv &> /dev/null; then
+  string=$string' $(rbenv_version)'
+fi
+
+if which node &> /dev/null; then
+  string=$string' $(node_version)'
+fi
+
+RPS1=$string$EPS1
+# RPS1='$(git_custom_status) $(rbenv_version) $(node_version)$EPS1'
 
 #ZSH_THEME_GIT_PROMPT_PREFIX="[%{$fg[red]%}"
 #ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%}"
