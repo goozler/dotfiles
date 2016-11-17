@@ -5,11 +5,11 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/mas
 
 FILES=("fzf" "helpers" "vim")
 for file in "${FILES[@]}"; do
-  if [ -f "$HOME/.oh-my-zsh/custom/$file.sh" ]; then
-    mv -v $HOME/.oh-my-zsh/custom/$file.sh $HOME/.oh-my-zsh/custom/$file.sh.old
+  if [ -f "$HOME/.oh-my-zsh/custom/$file.zsh" ]; then
+    mv -v $HOME/.oh-my-zsh/custom/$file.zsh $HOME/.oh-my-zsh/custom/$file.zsh.old
   fi
 
-  ln -sfv $PWD/oh_my_zsh/$file.sh $HOME/.oh-my-zsh/custom/$file.sh
+  ln -sfv $PWD/oh_my_zsh/$file.zsh $HOME/.oh-my-zsh/custom/$file.zsh
 done
 
 mkdir -p $HOME/.oh-my-zsh/custom/themes

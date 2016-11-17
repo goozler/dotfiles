@@ -15,7 +15,7 @@ if [[ $(uname -n) == ubuntu* ]]; then
   sudo add-apt-repository -y ppa:pi-rho/dev
   sudo apt-get update -yqq
 
-  sudo apt-get install -y curl git silversearcher-ag zsh
+  sudo apt-get install -y curl git silversearcher-ag z zsh
 
   # tmux
   sudo apt-get install -yqq tmux-next=2.3~20161115~bzr3615+20-1ubuntu1~ppa0~ubuntu14.04.1

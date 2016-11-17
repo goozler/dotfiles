@@ -2,7 +2,7 @@
 cd `dirname "$0"`
 
 sudo apt-get install -yqq checkinstall python-dev python3-dev ruby-dev
-sudo apt-get remove vim vim-runtime gvim
+sudo apt-get remove -yqq vim vim-runtime gvim
 
 git clone https://github.com/vim/vim.git
 cd vim
