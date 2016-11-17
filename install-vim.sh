@@ -16,4 +16,4 @@ for file in "${FILES[@]}"; do
   ln -sfv $PWD/vim/bundle.d/$file.vim $HOME/.vim/bundle.d/$file.vim
 done
 
-vim -u $HOME/.vim/bundle.d/plugins.vim +PlugInstall +qall
+YCM_CORES=1 vim -u $HOME/.vim/bundle.d/plugins.vim +PlugInstall +qall
