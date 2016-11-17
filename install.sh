@@ -10,6 +10,9 @@ for file in "${FILES[@]}"; do
 done
 
 if [[ $(uname -n) == ubuntu* ]]; then
+  # dev tools
+  sudo apt-get install build-essential cmake python-dev python3-dev
+  # utils
   sudo apt-get install -y curl git silversearcher-ag tmux zsh
 fi
 
