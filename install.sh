@@ -23,5 +23,5 @@ if [[ $(uname -n) == ubuntu* ]]; then
 fi
 
 ./install-tmux.sh
-./install-vim.sh
 ./install-oh-my-zsh.sh
+./install-vim.sh
