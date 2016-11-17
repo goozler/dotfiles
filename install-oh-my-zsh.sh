@@ -29,4 +29,4 @@ if [ -f "$HOME/.zshrc" ]; then
 fi
 ln -sfv $PWD/zshrc $HOME/.zshrc
 
-zsh -c 'zplug install'
+zsh -c 'source ~/.zplug/init.zsh && zplug install'
