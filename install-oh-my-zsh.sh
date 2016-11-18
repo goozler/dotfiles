@@ -22,6 +22,7 @@ for file in "${THEMES[@]}"; do
   ln -sfv $PWD/oh_my_zsh/themes/$file.zsh-theme $HOME/.oh-my-zsh/custom/themes/$file.zsh-theme
 done
 
+touch $HOME/.z
 curl -sL zplug.sh/installer | zsh
 
 if [ -f "$HOME/.zshrc" ]; then
