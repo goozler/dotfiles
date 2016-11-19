@@ -1,3 +1,5 @@
+scriptencoding utf-8
+set encoding=utf-8
 syntax on
 filetype plugin indent on
 
@@ -49,7 +51,7 @@ set title " show the filename in the window titlebar
 set ruler " show the cursor position
 set nostartofline " don't reset cursor to start of line when moving around.
 set shortmess=atI " don't show the intro message when starting Vim
-set lcs=tab:>\ ,trail:·,nbsp:_ " show 'invisible' characters
+set lcs=tab:▸\ ,trail:·,nbsp:_ " show 'invisible' characters
 
 " change cursor view for insert/normal mode
 " tmux will only forward escape sequences to the terminal if surrounded by a DCS sequence
