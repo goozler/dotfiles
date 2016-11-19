@@ -47,9 +47,9 @@ set wildmenu " visual autocomplete for command menu
 set showmatch  " highlight matching [{()}] "
 set title " show the filename in the window titlebar
 set ruler " show the cursor position
-set nostartofline " don’t reset cursor to start of line when moving around.
-set shortmess=atI " don’t show the intro message when starting Vim
-set lcs=tab:▸\ ,trail:·,nbsp:_ " show “invisible” characters
+set nostartofline " don't reset cursor to start of line when moving around.
+set shortmess=atI " don't show the intro message when starting Vim
+set lcs=tab:>\ ,trail:·,nbsp:_ " show 'invisible' characters
 
 " change cursor view for insert/normal mode
 " tmux will only forward escape sequences to the terminal if surrounded by a DCS sequence
@@ -104,7 +104,7 @@ set directory=~/.vim/swaps
 if exists("&undodir")
   set undodir=~/.vim/undo
 endif
-" Don’t create backups when editing files in certain directories
+" Don't create backups when editing files in certain directories
 set backupskip=/tmp/*,/private/tmp/*
 
 " STATUS LINE
