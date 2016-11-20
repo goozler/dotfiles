@@ -12,7 +12,7 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
-  config.vm.box = "ubuntu/xenial64"
+  config.vm.box = "bento/ubuntu-16.04"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -22,7 +22,7 @@ Vagrant.configure("2") do |config|
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
-  config.vm.network "forwarded_port", guest: 3000, host: 3001
+  # config.vm.network "forwarded_port", guest: 3000, host: 3001
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
@@ -39,7 +39,7 @@ Vagrant.configure("2") do |config|
   # argument is a set of non-required options.
   # config.vm.synced_folder "../data", "/vagrant_data"
 
-  config.ssh.forward_agent = true
+  # config.ssh.forward_agent = true
 
   # Provider-specific configuration so you can fine-tune various
   # backing providers for Vagrant. These expose provider-specific options.
@@ -78,46 +78,28 @@ Vagrant.configure("2") do |config|
   config.vm.provision "packages", type: "shell", inline: <<-SHELL
     echo 'Updating packages'
     apt-get update -yqq
-    echo 'Installing dev tools'
-    apt-get install -yqq build-essential cmake python python-dev python3-dev
-    echo 'Installing utils'
-    apt-get install -yqq curl git silversearcher-ag tmux vim zsh
-  SHELL
-
-  config.vm.provision "dotfiles", type: "shell", privileged: false, inline: <<-SHELL
-    echo 'Installing dotfiles'
-    git clone https://github.com/goozler/dotfiles.git
-    dotfiles/install.sh
-  SHELL
-
-  config.vm.provision "set_zsh", type: "shell", privileged: false, inline: <<-SHELL
-    # swith to zsh by profile file
-    echo '' >> $HOME/.profile
-    echo 'if which zsh &> /dev/null; then' >> $HOME/.profile
-    echo '  export SHELL=`which zsh`' >> $HOME/.profile
-    echo '  [ -z "$ZSH_VERSION" ] && exec "$SHELL" -l' >> $HOME/.profile
-    echo 'fi' >> $HOME/.profile
-  SHELL
-
-  config.vm.provision "docker", type: "shell", inline: <<-SHELL
-    echo 'Installing docker'
     apt-get install -yqq apt-transport-https ca-certificates
 
+    echo "Add Docker's repository"
     apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 
     echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list
 
     echo 'Updating packages'
     apt-get update -yqq
-
-    echo 'Downloading docker'
-    apt-get install -yqq linux-image-extra-$(uname -r) linux-image-extra-virtual
+    echo 'Upgrading packages'
+    apt-get upgrade -yqq
+    echo 'Installing dev tools'
+    apt-get install -yqq build-essential cmake python python-dev python3-dev
+    echo 'Installing utils'
+    apt-get install -yqq curl git silversearcher-ag tmux vim zsh
+    echo 'Installing docker'
+    apt-get install -yqq apt-transport-https ca-certificates
+    # apt-get install -yqq linux-image-extra-$(uname -r) linux-image-extra-virtual
     apt-get install -yqq --allow-unauthenticated docker-engine
+  SHELL
 
-    echo 'Add user to the docker group'
-    groupadd docker
-    usermod -aG docker ubuntu
-
+  config.vm.provision "docker", type: "shell", inline: <<-SHELL
     echo 'Start Docker on the boot'
     service docker start
     systemctl enable docker
@@ -127,5 +109,27 @@ Vagrant.configure("2") do |config|
     echo 'Installing docker-compose'
     curl -L https://github.com/docker/compose/releases/download/1.9.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
+  SHELL
+
+  # config.vm.provision "create_vagrant_user", type: "shell", inline: <<-SHELL
+  #   useradd -m -s /bin/zsh -U vagrant -G sudo,docker
+  #   echo "vagrant:vagrant" | chpasswd
+  # SHELL
+
+  config.vm.provision "dotfiles", type: "shell", privileged: false, inline: <<-SHELL
+    echo 'Installing dotfiles'
+    git clone https://github.com/goozler/dotfiles.git
+    dotfiles/install.sh
+    # su -c "cd /home/vagrant && git clone https://github.com/goozler/dotfiles.git" vagrant
+    # su -c "/home/vagrant/dotfiles/install.sh" vagrant
+  SHELL
+
+  config.vm.provision "set_zsh", type: "shell", privileged: false, inline: <<-SHELL
+    # swith to zsh by profile file
+    echo '' >> $HOME/.profile
+    echo 'if which zsh &> /dev/null; then' >> $HOME/.profile
+    echo '  export SHELL=`which zsh`' >> $HOME/.profile
+    echo '  [ -z "$ZSH_VERSION" ] && exec "$SHELL" -l' >> $HOME/.profile
+    echo 'fi' >> $HOME/.profile
   SHELL
 end
