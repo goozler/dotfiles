@@ -5,14 +5,14 @@
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
-Vagrant.configure("2") do |config|
+Vagrant.configure('2') do |config|
   # The most common configuration options are documented and commented below.
   # For a complete reference, please see the online documentation at
   # https://docs.vagrantup.com.
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
-  config.vm.box = "bento/ubuntu-16.04"
+  config.vm.box = 'ubuntu/xenial64'
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -45,14 +45,14 @@ Vagrant.configure("2") do |config|
   # backing providers for Vagrant. These expose provider-specific options.
   # Example for VirtualBox:
   #
-  config.vm.provider "virtualbox" do |vb|
-  #   # Display the VirtualBox GUI when booting the machine
-  #   vb.gui = true
-  #
-    # Customize the amount of memory on the VM:
-    vb.memory = "2048"
+  config.vm.provider 'virtualbox' do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    # vb.gui = true
 
-    vb.name = "development_machine"
+    # Customize the amount of memory on the VM:
+    vb.memory = '2048'
+
+    vb.name = 'dev_build'
   end
   #
   # View the documentation for the provider you are using for more
@@ -70,19 +70,14 @@ Vagrant.configure("2") do |config|
   # documentation for more information about their specific syntax and use.
 
   # https://github.com/Varying-Vagrant-Vagrants/VVV/issues/517#issuecomment-160411807
-  config.vm.provision "fix-no-tty", type: "shell" do |s|
+  config.vm.provision 'fix-no-tty', type: 'shell' do |s|
     s.privileged = false
     s.inline = "sudo sed -i '/tty/!s/mesg n/tty -s \\&\\& mesg n/' /root/.profile"
   end
 
-  config.vm.provision "packages", type: "shell", inline: <<-SHELL
-    echo 'Updating packages'
-    apt-get update -yqq
-    apt-get install -yqq apt-transport-https ca-certificates
-
+  config.vm.provision 'packages', type: 'shell', inline: <<-SHELL
     echo "Add Docker's repository"
     apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-
     echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list
 
     echo 'Updating packages'
@@ -95,41 +90,40 @@ Vagrant.configure("2") do |config|
     apt-get install -yqq curl git silversearcher-ag tmux vim zsh
     echo 'Installing docker'
     apt-get install -yqq apt-transport-https ca-certificates
-    # apt-get install -yqq linux-image-extra-$(uname -r) linux-image-extra-virtual
+    apt-get install -yqq linux-image-extra-$(uname -r) linux-image-extra-virtual
     apt-get install -yqq --allow-unauthenticated docker-engine
   SHELL
 
-  config.vm.provision "docker", type: "shell", inline: <<-SHELL
+  config.vm.provision 'docker', type: 'shell', inline: <<-SHELL
     echo 'Start Docker on the boot'
     service docker start
     systemctl enable docker
   SHELL
 
-  config.vm.provision "docker-compose", type: "shell", inline: <<-SHELL
+  config.vm.provision 'docker-compose', type: 'shell', inline: <<-SHELL
     echo 'Installing docker-compose'
     curl -L https://github.com/docker/compose/releases/download/1.9.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
   SHELL
 
-  # config.vm.provision "create_vagrant_user", type: "shell", inline: <<-SHELL
-  #   useradd -m -s /bin/zsh -U vagrant -G sudo,docker
-  #   echo "vagrant:vagrant" | chpasswd
-  # SHELL
-
-  config.vm.provision "dotfiles", type: "shell", privileged: false, inline: <<-SHELL
-    echo 'Installing dotfiles'
-    git clone https://github.com/goozler/dotfiles.git
-    dotfiles/install.sh
-    # su -c "cd /home/vagrant && git clone https://github.com/goozler/dotfiles.git" vagrant
-    # su -c "/home/vagrant/dotfiles/install.sh" vagrant
+  config.vm.provision 'create_vagrant_user', type: 'shell', inline: <<-SHELL
+    useradd -m -s /bin/zsh -U vagrant -G sudo,docker
+    echo "vagrant:vagrant" | chpasswd
   SHELL
 
-  config.vm.provision "set_zsh", type: "shell", privileged: false, inline: <<-SHELL
-    # swith to zsh by profile file
-    echo '' >> $HOME/.profile
-    echo 'if which zsh &> /dev/null; then' >> $HOME/.profile
-    echo '  export SHELL=`which zsh`' >> $HOME/.profile
-    echo '  [ -z "$ZSH_VERSION" ] && exec "$SHELL" -l' >> $HOME/.profile
-    echo 'fi' >> $HOME/.profile
+  config.vm.provision 'dotfiles', type: 'shell', inline: <<-SHELL
+    echo 'Installing dotfiles'
+    su -c "cd /home/vagrant && git clone https://github.com/goozler/dotfiles.git" vagrant
+    su -c "/home/vagrant/dotfiles/install.sh" vagrant
+  SHELL
+
+  config.vm.provision 'ssh_key', type: 'shell', inline: <<-SHELL
+    echo 'Set Vagrant ssh key'
+    su -c "mkdir /home/vagrant/.ssh" vagrant
+    su -c "wget --no-check-certificate \
+           'https://github.com/mitchellh/vagrant/raw/master/keys/vagrant.pub' \
+           -O /home/vagrant/.ssh/authorized_keys" vagrant
+    su -c "chown -R vagrant /home/vagrant/.ssh" vagrant
+    su -c "chmod -R go-rwsx /home/vagrant/.ssh" vagrant
   SHELL
 end
