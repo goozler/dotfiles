@@ -222,6 +222,9 @@ let g:maximizer_set_default_mapping = 0
 nnoremap <silent><leader>z :MaximizerToggle!<CR>
 vnoremap <silent><leader>z :MaximizerToggle!<CR>gv
 
+" EditorConfig
+let g:EditorConfig_exclude_patterns = ['fugitive://.*', 'scp://.*']
+
 " ======================================
 " CUSTOM MAPPINGS
 " ======================================

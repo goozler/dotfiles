@@ -25,6 +25,7 @@ Plug 'DataWraith/auto_mkdir'
 Plug 'jpalardy/vim-slime'
 Plug 'szw/vim-maximizer'
 Plug 'tpope/vim-obsession'
+Plug 'editorconfig/editorconfig-vim'
 
 " Databases
 Plug 'vim-scripts/dbext.vim'
