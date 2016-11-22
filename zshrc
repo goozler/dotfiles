@@ -1,21 +1,6 @@
 # Path to your oh-my-zsh installation.
 export ZSH=$HOME/.oh-my-zsh
 
-source ~/.zplug/init.zsh
-zplug "Tarrasch/zsh-autoenv"
-zplug "zplug/zplug"
-
-# Install plugins if there are plugins that have not been installed
-if ! zplug check --verbose; then
-  printf "Install? [y/N]: "
-  if read -q; then
-    echo; zplug install
-  fi
-fi
-
-# Then, source plugins and add commands to $PATH
-zplug load
-
 # Set name of the theme to load.
 # Look in ~/.oh-my-zsh/themes/
 # Optionally, if you set this to "random", it'll load a random theme each
@@ -65,9 +50,26 @@ ZSH_THEME="goozler"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 
-plugins=(git rails rake rake-fast brew brew-cask capistrano z history heroku \
-         gem per-directory-history npm ocx tmux \
-         docker docker-compose vagrant)
+plugins=(
+  brew
+  brew-cask
+  capistrano
+  docker
+  docker-compose
+  gem
+  git
+  heroku
+  history
+  npm
+  ocx
+  per-directory-history
+  rails
+  rake
+  rake-fast
+  tmux
+  vagrant
+  z
+)
 
 # User configuration
 export PATH="/usr/local/bin:"\
@@ -122,4 +124,17 @@ alias jj=zz
 
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+source ~/.zplug/init.zsh
+zplug "Tarrasch/zsh-autoenv"
+zplug "zplug/zplug"
+
+# Install plugins if there are plugins that have not been installed
+if ! zplug check --verbose; then
+  printf "Install? [y/N]: "
+  if read -q; then
+    echo; zplug install
+  fi
+fi
+
+# Then, source plugins and add commands to $PATH
+zplug load
