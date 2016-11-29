@@ -85,9 +85,9 @@ Vagrant.configure('2') do |config|
     echo 'Upgrading packages'
     apt-get upgrade -yqq
     echo 'Installing dev tools'
-    apt-get install -yqq build-essential cmake python python-dev python3-dev
+    apt-get install -yqq build-essential cmake python python-dev python3-dev libncurses5-dev
     echo 'Installing utils'
-    apt-get install -yqq curl git silversearcher-ag tmux vim zsh
+    apt-get install -yqq curl git silversearcher-ag tmux vim xlclip zsh
     echo 'Installing docker'
     apt-get install -yqq apt-transport-https ca-certificates
     apt-get install -yqq linux-image-extra-$(uname -r) linux-image-extra-virtual

@@ -136,7 +136,7 @@ let g:syntastic_check_on_wq = 0
 let g:syntastic_aggregate_errors = 1
 let g:syntastic_loc_list_height = 5
 let g:syntastic_ruby_checkers = ['mri', 'rubocop']
-let g:syntastic_javascript_checkers = ['jshint', 'jscs']
+let g:syntastic_javascript_checkers = ['standard']
 let g:syntastic_slim_checkers = ['slim_lint', 'slimrb']
 nnoremap <Leader>; :SyntasticToggleMode<cr>
 
@@ -202,9 +202,6 @@ vnoremap <silent> <C-f> y :Ag <C-R>"<cr>
 vnoremap <silent> <Leader>f y :Ag <C-R>"<cr>
 nnoremap <silent> <Leader>` :Marks<cr>
 
-" YouCompleteMe
-let g:ycm_show_diagnostics_ui = 0
-
 " dbext
 let g:dbext_default_type = 'ODBC'
 
@@ -224,6 +221,18 @@ vnoremap <silent><leader>z :MaximizerToggle!<CR>gv
 
 " EditorConfig
 let g:EditorConfig_exclude_patterns = ['fugitive://.*', 'scp://.*']
+
+" Smartpairs
+let g:smartpairs_nextpairs_key = 'n'
+let g:smartpairs_revert_key = '<C-n>'
+
+" YouCompleteMe
+let g:ycm_show_diagnostics_ui = 0
+
+" Snippets
+let g:UltiSnipsExpandTrigger = '<leader>j'
+let g:UltiSnipsJumpForwardTrigger = '<leader>j'
+let g:UltiSnipsJumpBackwardTrigger = '<leader>k'
 
 " ======================================
 " CUSTOM MAPPINGS

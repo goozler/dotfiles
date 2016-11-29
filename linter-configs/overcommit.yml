@@ -37,9 +37,9 @@ PreCommit:
     enabled: true
     exclude: vendor/**/*
   ImageOptim:
-    enabled: true
+    enabled: false
   JsHint:
-    enabled: true
+    enabled: false
     exclude: vendor/assets/javascripts/**/*
   RailsSchemaUpToDate:
     enabled: true
@@ -48,6 +48,8 @@ PreCommit:
   ScssLint:
     enabled: true
   SlimLint:
+    enabled: true
+  Standard:
     enabled: true
   TrailingWhitespace:
     enabled: true

@@ -124,6 +124,9 @@ alias jj=zz
 
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
+export NVM_DIR="$HOME/.nvm"
+# source "/usr/local/opt/nvm/nvm.sh"
+
 source ~/.zplug/init.zsh
 zplug "Tarrasch/zsh-autoenv"
 zplug "zplug/zplug"
