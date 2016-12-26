@@ -16,3 +16,6 @@
 Result
 .sql
 .patches
+tags
+tags.lock
+tags.temp

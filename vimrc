@@ -201,6 +201,7 @@ nnoremap <silent> <Leader>f :Ag <C-R><C-A><cr>
 vnoremap <silent> <C-f> y :Ag <C-R>"<cr>
 vnoremap <silent> <Leader>f y :Ag <C-R>"<cr>
 nnoremap <silent> <Leader>` :Marks<cr>
+nnoremap <silent> <C-g> :GFiles?<cr>
 
 " dbext
 let g:dbext_default_type = 'ODBC'
@@ -228,11 +229,19 @@ let g:smartpairs_revert_key = '<C-n>'
 
 " YouCompleteMe
 let g:ycm_show_diagnostics_ui = 0
+let g:ycm_key_list_select_completion = ['<C-n>', '<Down>']
+let g:ycm_key_list_previous_completion = ['<C-p>', '<Up>']
+let g:SuperTabDefaultCompletionType = '<C-n>'
 
 " Snippets
-let g:UltiSnipsExpandTrigger = '<leader>j'
-let g:UltiSnipsJumpForwardTrigger = '<leader>j'
-let g:UltiSnipsJumpBackwardTrigger = '<leader>k'
+let g:UltiSnipsJumpForwardTrigger = "<tab>"
+let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
+
+" Tagbar
+nmap <C-t> :TagbarToggle<CR>
+
+" Syntax JSX
+let g:jsx_ext_required = 0 " highlight .js files too
 
 " ======================================
 " CUSTOM MAPPINGS
