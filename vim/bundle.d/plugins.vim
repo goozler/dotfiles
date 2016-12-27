@@ -58,9 +58,10 @@ if v:version >= 703
 endif
 
 " Syntax
+Plug 'briancollins/vim-jst', { 'for': 'jst' }
 Plug 'digitaltoad/vim-pug', { 'for': 'pug' }
 Plug 'elzr/vim-json', { 'for': 'json' }
-Plug 'kchmck/vim-coffee-script', { 'for': 'coffee' }
+Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
 Plug 'pangloss/vim-javascript', { 'for': 'js' } | Plug 'mxw/vim-jsx'
 Plug 'slim-template/vim-slim', { 'for': 'slim' }
 Plug 'tpope/vim-haml', { 'for': ['haml', 'sass', 'scss'] }
