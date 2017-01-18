@@ -1,9 +1,11 @@
 call plug#begin('~/.vim/plugged')
 " Edit
 Plug 'AndrewRadev/splitjoin.vim'
+Plug 'Chiel92/vim-autoformat'
 Plug 'DataWraith/auto_mkdir'
 Plug 'Raimondi/delimitMate'
 Plug 'Valloric/YouCompleteMe', { 'do': './install.py' }
+Plug 'Yggdroot/indentLine'
 Plug 'bronson/vim-trailing-whitespace'
 Plug 'dkprice/vim-easygrep'
 Plug 'easymotion/vim-easymotion'
@@ -44,7 +46,8 @@ Plug 'scrooloose/syntastic' " , { 'on': 'SyntasticCheck' }
 Plug 'benmills/vimux'
 
 " UI
-Plug 'jonathanfilip/vim-lucius' " color scheme
+" Plug 'jonathanfilip/vim-lucius' " color scheme
+Plug 'altercation/vim-colors-solarized' " color scheme
 Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
 

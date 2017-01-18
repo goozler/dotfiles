@@ -99,6 +99,7 @@ set shiftwidth=2
 " SPLITS
 set splitbelow
 set splitright
+set diffopt+=vertical
 
 " BACKUPS/SWAPS
 set backupdir=~/.vim/backups
@@ -171,8 +172,10 @@ nnoremap <silent> <leader>T :VroomRunNearestTest<cr>
 nnoremap <silent> <leader>l :VroomRunLastTest<cr>
 
 " Color scheme
-colorscheme lucius
-LuciusWhite
+" colorscheme lucius
+" LuciusWhite
+set background=dark
+colorscheme solarized
 
 " Buffergator
 let g:buffergator_suppress_keymaps = 1
