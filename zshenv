@@ -11,3 +11,4 @@ export FZF_DEFAULT_COMMAND="ag --hidden \
   --ignore tmp \
   -g ''"
 export FZF_CTRL_T_COMMAND="ag -g ''"
+export GOPATH=$HOME

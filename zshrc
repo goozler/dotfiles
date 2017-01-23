@@ -73,15 +73,16 @@ plugins=(
 
 # User configuration
 export PATH="/usr/local/bin:"\
-"/usr/local/sbin:"\
+"$GOPATH/bin:"\
 "$HOME/.rbenv/bin:"\
 "$HOME/.rbenv/shims:"\
-"/usr/bin:"\
 "/bin:"\
-"/usr/sbin:"\
-"/sbin:"\
-"/usr/local/bin:"\
 "/opt/X11/bin:"\
+"/sbin:"\
+"/usr/bin:"\
+"/usr/local/bin:"\
+"/usr/local/sbin:"\
+"/usr/sbin:"\
 "$PATH"
 
 # export MANPATH="/usr/local/man:$MANPATH"

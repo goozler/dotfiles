@@ -131,13 +131,14 @@ map <Leader>n :NERDTreeToggle<cr>
 map <Leader>m :NERDTreeFind<cr>
 
 " Syntastic
+let g:syntastic_aggregate_errors = 1
 let g:syntastic_always_populate_loc_list = 1
 let g:syntastic_auto_loc_list = 0
 let g:syntastic_check_on_wq = 0
-let g:syntastic_aggregate_errors = 1
 let g:syntastic_loc_list_height = 5
-let g:syntastic_ruby_checkers = ['mri', 'rubocop']
+let g:syntastic_go_checkers = ['gometalinter']
 let g:syntastic_javascript_checkers = ['standard']
+let g:syntastic_ruby_checkers = ['mri', 'rubocop']
 let g:syntastic_slim_checkers = ['slim_lint', 'slimrb']
 nnoremap <Leader>; :SyntasticToggleMode<cr>
 
