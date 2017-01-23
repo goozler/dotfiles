@@ -22,6 +22,9 @@ for file in "${THEMES[@]}"; do
   ln -sfv $PWD/oh_my_zsh/themes/$file.zsh-theme $HOME/.oh-my-zsh/custom/themes/$file.zsh-theme
 done
 
+mkdir -p $HOME/.oh-my-zsh/custom/zeroconfig
+ln -sfv $PWD/oh_my_zsh/zeroconfig/zshrc $HOME/.oh-my-zsh/custom/zeroconfig/.zshrc
+
 touch $HOME/.z
 
 if [ -f "$HOME/.zshrc" ]; then
