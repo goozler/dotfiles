@@ -146,6 +146,10 @@ nnoremap <Leader>; :SyntasticToggleMode<cr>
 map  / <Plug>(easymotion-sn)
 omap / <Plug>(easymotion-tn)
 
+" EasyGrep
+let g:EasyGrepFilesToExclude='.git,tags'
+let g:EasyGrepCommand='ag'
+
 " Fugitive
 nmap <silent> <leader>g :Gstatus<cr>gg<c-n>
 nmap <leader>d :Gdiff<cr>
