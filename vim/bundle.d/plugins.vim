@@ -39,7 +39,7 @@ Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
 Plug 'vim-scripts/dbext.vim'
 
 " Lint
-Plug 'scrooloose/syntastic' " , { 'on': 'SyntasticCheck' }
+Plug 'scrooloose/syntastic' | Plug 'mtscout6/syntastic-local-eslint.vim' " , { 'on': 'SyntasticCheck' }
 
 " Tmux
 Plug 'benmills/vimux'
