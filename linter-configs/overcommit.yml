@@ -31,6 +31,9 @@ PreCommit:
   CssLint:
     enabled: true
     exclude: vendor/assets/stylesheets/**/*
+  EsLint:
+    enabled: true
+    required_executable: './node_modules/.bin/eslint'
   HamlLint:
     enabled: true
   HardTabs:
@@ -50,7 +53,7 @@ PreCommit:
   SlimLint:
     enabled: true
   Standard:
-    enabled: true
+    enabled: false
   TrailingWhitespace:
     enabled: true
     exclude:
