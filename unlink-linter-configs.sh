@@ -1,6 +1,7 @@
 #!/bin/bash
 
 FILES=(
+  "eslintrc"
   "jscsrc"
   "jshintrc"
   "overcommit.yml"

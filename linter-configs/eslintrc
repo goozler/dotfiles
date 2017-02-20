@@ -1,0 +1,32 @@
+{
+  "extends": "airbnb",
+  "env": {
+    "browser": true,
+    "node": true
+  },
+  "presets": [
+    "es2015",
+    "stage-0",
+    "react"
+  ],
+  "parser": "babel-eslint",
+  "globals": {
+    "window": true,
+    "document": true
+  },
+  "rules": {
+    "quotes": ["error", "single"],
+    "semi": ["error", "always"],
+    "indent": [2, 2, {"SwitchCase": 1}],
+    "max-len": 0,
+    "comma-dangle": 0,
+    "import/prefer-default-export": 0,
+    "new-cap": 1,
+    "no-unused-vars": [2, { "varsIgnorePattern": "Styles$" }],
+    "no-multiple-empty-lines": [2, {"max": 2, "maxEOF": 2}],
+    "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }],
+    "react/forbid-prop-types": [1, { "forbid": ["any"] }],
+    "react/prefer-stateless-function": [0],
+    "react/jsx-no-bind": [0]
+  }
+}

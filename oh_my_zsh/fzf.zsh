@@ -62,7 +62,7 @@ fco() {
 
 # fshow - git commit browser
 fshow() {
-  git log --graph --color=always \
+  git log --graph --all --color=always \
       --format="%C(auto)%h%d %s %C(black)%C(bold)%cr" "$@" |
   fzf --ansi --no-sort --reverse --tiebreak=index --bind=ctrl-s:toggle-sort \
       --bind "ctrl-m:execute:

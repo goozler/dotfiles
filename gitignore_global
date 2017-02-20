@@ -5,6 +5,7 @@
 .ruby-version
 .jshintrc
 .jscsrc
+.eslintrc
 .idea/*
 .byebug_history
 .rake_tasks
@@ -20,3 +21,4 @@ tags
 tags.lock
 tags.temp
 .stuff
+*.log

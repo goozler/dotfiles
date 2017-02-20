@@ -1,6 +1,7 @@
 #!/bin/bash
 
 FILES=(
+  "eslintrc"
   "overcommit.yml"
   "rubocop.yml"
   "scss-lint.yml"
