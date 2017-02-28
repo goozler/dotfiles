@@ -26,6 +26,7 @@ Plug 'thinca/vim-localrc'
 Plug 'tpope/vim-bundler'
 Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-endwise'
+Plug 'tpope/vim-eunuch'
 Plug 'tpope/vim-obsession'
 Plug 'tpope/vim-rails'
 Plug 'tpope/vim-repeat'
@@ -39,7 +40,8 @@ Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
 Plug 'vim-scripts/dbext.vim'
 
 " Lint
-Plug 'scrooloose/syntastic' | Plug 'mtscout6/syntastic-local-eslint.vim' " , { 'on': 'SyntasticCheck' }
+" Plug 'scrooloose/syntastic' | Plug 'mtscout6/syntastic-local-eslint.vim' " , { 'on': 'SyntasticCheck' }
+Plug 'scrooloose/syntastic'
 
 " Tmux
 Plug 'benmills/vimux'
@@ -49,6 +51,7 @@ Plug 'benmills/vimux'
 Plug 'altercation/vim-colors-solarized' " color scheme
 Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
+Plug 'wesQ3/vim-windowswap'
 
 " Documentation
 Plug 'danchoi/ri.vim'
@@ -60,13 +63,14 @@ if v:version >= 703
 endif
 
 " Syntax
-Plug 'briancollins/vim-jst', { 'for': 'jst' }
-Plug 'digitaltoad/vim-pug', { 'for': 'pug' }
-Plug 'elzr/vim-json', { 'for': 'json' }
-Plug 'fatih/vim-go', { 'for': 'go' }
-Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
-Plug 'pangloss/vim-javascript', { 'for': 'js' } | Plug 'mxw/vim-jsx'
-Plug 'slim-template/vim-slim', { 'for': 'slim' }
-Plug 'tpope/vim-haml', { 'for': ['haml', 'sass', 'scss'] }
-Plug 'vim-ruby/vim-ruby', { 'for': 'ruby' }
+Plug 'sheerun/vim-polyglot'
+" Plug 'briancollins/vim-jst', { 'for': 'jst' }
+" Plug 'digitaltoad/vim-pug', { 'for': 'pug' }
+" Plug 'elzr/vim-json', { 'for': 'json' }
+" Plug 'fatih/vim-go', { 'for': 'go' }
+" Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
+" Plug 'pangloss/vim-javascript', { 'for': 'js' } | Plug 'mxw/vim-jsx'
+" Plug 'slim-template/vim-slim', { 'for': 'slim' }
+" Plug 'tpope/vim-haml', { 'for': ['haml', 'sass', 'scss'] }
+" Plug 'vim-ruby/vim-ruby', { 'for': 'ruby' }
 call plug#end()

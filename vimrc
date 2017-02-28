@@ -1,67 +1,85 @@
 scriptencoding utf-8
 set encoding=utf-8
-syntax on
-filetype plugin indent on
+if !has('nvim')
+  syntax on
+  filetype plugin indent on
+endif
 
 source ~/.vim/bundle.d/plugins.vim
 
 " ======================================
-" BASIC SETTINGS
+" BASE SETTINGS
 " ======================================
 let mapleader      = ' '
 let maplocalleader = ' '
 
 " Faster redrawing
-set ttyfast
 set lazyredraw
+if !has('nvim')
+  set ttyfast
+endif
 
-set nu " enable line numbers
-set timeout timeoutlen=500 ttimeoutlen=100 " fix slow O inserts
-set nocompatible
-set autoread
-set list
-set backspace=indent,eol,start " enable Backspace in insert mode
-set hidden " allow unsaved background buffers and remember marks/undo for them
-set history=10000 " remember more commands and search history
-set scrolloff=7 " minimal lines around the cursor
 set clipboard=unnamed " share copy buffer with system OS
-set shortmess=aIT " short messages
-set ve=block " allow put the cursor anyway in visual block mode
+set hidden " allow unsaved background buffers and remember marks/undo for them
+set list
 set nojs " insert only one space after . ? ! with a join command
-set pastetoggle=<F9>
-set synmaxcol=120
 set nosol " keep the cursor in the same column when jump in file
+set nu " enable line numbers
+set pastetoggle=<F9>
+set scrolloff=7 " minimal lines around the cursor
+set shortmess=aIT " short messages
+set synmaxcol=120
+set timeout timeoutlen=500 ttimeoutlen=100 " fix slow O inserts
+set ve=block " allow put the cursor anyway in visual block mode
+if !has('nvim')
+  set autoread
+  set backspace=indent,eol,start " enable Backspace in insert mode
+  set history=10000 " remember more commands and search history
+  set nocompatible
+endif
 
 " Mouse
-silent! set ttymouse=xterm2
-set mouse=a
+if !has('nvim')
+  silent! set ttymouse=xterm2
+  set mouse=a
+endif
 
 " Shift-tab on GNU screen
 " http://superuser.com/questions/195794/gnu-screen-shift-tab-issue
 set t_kB=[Z
 
 " UI SETTINGS
-set term=screen-256color " 256-color terminal
-set showcmd " show the (partial) command as it’s being typed
-set showmode " show the current mode
 set cursorline " highlight current line
-set wildmenu " visual autocomplete for command menu
-set showmatch  " highlight matching [{()}] "
-set title " show the filename in the window titlebar
-set ruler " show the cursor position
 set nostartofline " don't reset cursor to start of line when moving around.
+set ruler " show the cursor position
 set shortmess=atI " don't show the intro message when starting Vim
+set showcmd " show the (partial) command as it’s being typed
+set showmatch  " highlight matching [{()}] "
+set showmode " show the current mode
+set title " show the filename in the window titlebar
 set lcs=tab:▸\ ,trail:·,nbsp:_ " show 'invisible' characters
+if !has('nvim')
+  set term=screen-256color " 256-color terminal
+  set wildmenu " visual autocomplete for command menu
+else
+  let base16colorspace=256
+endif
 
 " change cursor view for insert/normal mode
-" tmux will only forward escape sequences to the terminal if surrounded by a DCS sequence
-" http://sourceforge.net/mailarchive/forum.php?thread_name=AANLkTinkbdoZ8eNR1X2UobLTeww1jFrvfJxTMfKSq-L%2B%40mail.gmail.com&forum_name=tmux-users
-if exists('$TMUX')
-  let &t_SI = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=1\x7\<Esc>\\"
-  let &t_EI = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=0\x7\<Esc>\\"
+if has('nvim')
+  let $NVIM_TUI_ENABLE_CURSOR_SHAPE=1
 else
-  let &t_SI = "\<Esc>]50;CursorShape=1\x7"
-  let &t_EI = "\<Esc>]50;CursorShape=0\x7"
+  " tmux will only forward escape sequences to the terminal if surrounded by a DCS sequence
+  " http://sourceforge.net/mailarchive/forum.php?thread_name=AANLkTinkbdoZ8eNR1X2UobLTeww1jFrvfJxTMfKSq-L%2B%40mail.gmail.com&forum_name=tmux-users
+  if exists('$TMUX')
+    let &t_SI = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=1\x7\<Esc>\\"
+    let &t_SR = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=2\x7\<Esc>\\"
+    let &t_EI = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=0\x7\<Esc>\\"
+  else
+    let &t_SI = "\<Esc>]50;CursorShape=1\x7"
+    let &t_SR = "\<Esc>]50;CursorShape=2\x7"
+    let &t_EI = "\<Esc>]50;CursorShape=0\x7"
+  endif
 endif
 
 " 80 chars/line
@@ -75,11 +93,13 @@ set noerrorbells
 set vb t_vb=
 
 " SEARCHING
-set incsearch " highlight dynamically as pattern is typed
-set hlsearch " highlight searches
 set gdefault " add the g flag to search/replace by default
 " Make searches case-sensitive only if they contain upper-case characters
 set ignorecase smartcase
+if !has('nvim')
+  set hlsearch " highlight searches
+  set incsearch " highlight dynamically as pattern is typed
+endif
 
 " FOLDING
 set foldenable          " dont fold by default
@@ -91,10 +111,12 @@ set foldnestmax=10      " 10 nested fold max
 set tabstop=2     " read as
 set softtabstop=2 " insert as
 set expandtab     " tabs are spaces
-set autoindent
 set smartindent
-set smarttab
 set shiftwidth=2
+if !has('nvim')
+  set autoindent
+  set smarttab
+endif
 
 " SPLITS
 set splitbelow
@@ -102,16 +124,20 @@ set splitright
 set diffopt+=vertical
 
 " BACKUPS/SWAPS
-set backupdir=~/.vim/backups
-set directory=~/.vim/swaps
-if exists("&undodir")
-  set undodir=~/.vim/undo
+if !has('nvim')
+  set backupdir=~/.vim/backups
+  set directory=~/.vim/swaps
+  if exists("&undodir")
+    set undodir=~/.vim/undo
+  endif
 endif
 " Don't create backups when editing files in certain directories
 set backupskip=/tmp/*,/private/tmp/*
 
 " STATUS LINE
-set laststatus=2 " Always show status line
+if !has('nvim')
+  set laststatus=2 " Always show status line
+endif
 let g:airline_powerline_fonts = 1
 let g:airline#extensions#tabline#enabled = 1
 
@@ -121,6 +147,16 @@ set wildignore+=*/bower_components/*,*/test/files/*,*/features/vcr/*,*.cache
 
 " Jump to the last cursor position
 autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal g`\"" | endif
+
+" ======================================
+" COLOR SCHEME
+" ======================================
+set background=dark
+colorscheme solarized
+
+" Old one
+" colorscheme lucius
+" LuciusWhite
 
 " ======================================
 " PLUGIN SETTINGS AND MAPPINGS
@@ -178,12 +214,6 @@ let g:vroom_use_vimux = 1
 nnoremap <silent> <leader>t :VroomRunTestFile<cr>
 nnoremap <silent> <leader>T :VroomRunNearestTest<cr>
 nnoremap <silent> <leader>l :VroomRunLastTest<cr>
-
-" Color scheme
-" colorscheme lucius
-" LuciusWhite
-set background=dark
-colorscheme solarized
 
 " Buffergator
 let g:buffergator_suppress_keymaps = 1
@@ -259,6 +289,10 @@ let g:jsx_ext_required = 0 " highlight .js files too
 " ======================================
 " jk to normal mode
 inoremap jk <Esc>
+
+" Move up/down on wrapped lines
+nmap j gj
+nmap k gk
 
 " Fast split
 nnoremap <silent> <leader>\ :vnew<cr>
