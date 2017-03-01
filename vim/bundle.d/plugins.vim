@@ -41,14 +41,16 @@ Plug 'vim-scripts/dbext.vim'
 
 " Lint
 " Plug 'scrooloose/syntastic' | Plug 'mtscout6/syntastic-local-eslint.vim' " , { 'on': 'SyntasticCheck' }
-Plug 'scrooloose/syntastic'
+" Plug 'scrooloose/syntastic'
+Plug 'neomake/neomake'
 
 " Tmux
 Plug 'benmills/vimux'
 
 " UI
 " Plug 'jonathanfilip/vim-lucius' " color scheme
-Plug 'altercation/vim-colors-solarized' " color scheme
+" Plug 'altercation/vim-colors-solarized' " color scheme
+Plug 'jwhitley/vim-colors-solarized' " use fork with some fixes
 Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
 Plug 'wesQ3/vim-windowswap'
@@ -58,9 +60,7 @@ Plug 'danchoi/ri.vim'
 
 " Git
 Plug 'tpope/vim-fugitive'
-if v:version >= 703
-  Plug 'mhinz/vim-signify'
-endif
+Plug 'mhinz/vim-signify'
 
 " Syntax
 Plug 'sheerun/vim-polyglot'

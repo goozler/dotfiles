@@ -166,17 +166,40 @@ let NERDTreeShowHidden=1 " Always show dot files
 map <Leader>n :NERDTreeToggle<cr>
 map <Leader>m :NERDTreeFind<cr>
 
+" Neovim
+autocmd! BufReadPost,BufWritePost * Neomake
+" autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
+let g:neomake_error_sign = {'text': 'x'}
+let g:neomake_warning_sign = {'text': '!'}
+let g:neomake_message_sign = {'text': '>'}
+let g:neomake_info_sign = {'text': 'i'}
+
+function! s:ToggleNeomakeMarkers()
+  if g:neomake_place_signs
+    echo 'Disable Neomake markers'
+    let g:neomake_place_signs=0
+    sign unplace *
+    SignifyRefresh
+  else
+    echo 'Enable Neomake markers'
+    let g:neomake_place_signs=1
+    Neomake
+  endif
+endfunction
+
+nnoremap <silent> <Leader>; :call <SID>ToggleNeomakeMarkers()<CR>
+
 " Syntastic
-let g:syntastic_aggregate_errors = 1
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 0
-let g:syntastic_check_on_wq = 0
-let g:syntastic_loc_list_height = 5
-let g:syntastic_go_checkers = ['golint', 'govet', 'gometalinter']
-let g:syntastic_javascript_checkers = ['javascript/eslint']
-let g:syntastic_ruby_checkers = ['mri', 'rubocop']
-let g:syntastic_slim_checkers = ['slim_lint', 'slimrb']
-nnoremap <Leader>; :SyntasticToggleMode<cr>
+" let g:syntastic_aggregate_errors = 1
+" let g:syntastic_always_populate_loc_list = 1
+" let g:syntastic_auto_loc_list = 0
+" let g:syntastic_check_on_wq = 0
+" let g:syntastic_loc_list_height = 5
+" let g:syntastic_go_checkers = ['golint', 'govet', 'gometalinter']
+" let g:syntastic_javascript_checkers = ['javascript/eslint']
+" let g:syntastic_ruby_checkers = ['mri', 'rubocop']
+" let g:syntastic_slim_checkers = ['slim_lint', 'slimrb']
+" nnoremap <Leader>; :SyntasticToggleMode<cr>
 
 " Go
 let g:go_list_type = 'quickfix'
@@ -282,7 +305,7 @@ let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
 nmap <C-t> :TagbarToggle<CR>
 
 " Syntax JSX
-let g:jsx_ext_required = 0 " highlight .js files too
+" let g:jsx_ext_required = 0 " highlight .js files too
 
 " ======================================
 " CUSTOM MAPPINGS
