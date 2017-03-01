@@ -169,6 +169,7 @@ map <Leader>m :NERDTreeFind<cr>
 " Neovim
 autocmd! BufWritePost * Neomake
 " autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
+let g:neomake_javascript_enabled_makers = ['eslint']
 let g:neomake_error_sign = {'text': 'x'}
 let g:neomake_warning_sign = {'text': '!'}
 let g:neomake_message_sign = {'text': '>'}
@@ -208,8 +209,8 @@ nnoremap <Leader>; :IndentLinesToggle<CR>
 let g:go_list_type = 'quickfix'
 
 " EasyMotion
-map  / <Plug>(easymotion-sn)
-omap / <Plug>(easymotion-tn)
+map  <C-_> <Plug>(easymotion-sn)
+omap <C-_> <Plug>(easymotion-tn)
 
 " EasyGrep
 let g:EasyGrepFilesToExclude='.git,tags'
@@ -261,14 +262,24 @@ let g:fzf_action = {
   \ 'ctrl-t': 'tab split',
   \ 'ctrl-x': 'split',
   \ 'ctrl-s': 'vsplit' }
+
+command! -bang -nargs=* Ag
+  \ call fzf#vim#ag(<q-args>,
+  \                 <bang>0 ? fzf#vim#with_preview('up:60%')
+  \                         : fzf#vim#with_preview('right:50%:hidden', '?'),
+  \                 <bang>0)
+
 nnoremap <silent> <C-b> :Buffers<cr>
 nnoremap <silent> <expr> <C-p> (expand('%') =~ 'NERD_tree' ? "\<c-w>\<c-w>" : '').":Files\<cr>"
-nnoremap <silent> <C-f> :Ag <C-R><C-W><cr>
-nnoremap <silent> <Leader>f :Ag <C-R><C-A><cr>
-vnoremap <silent> <C-f> y :Ag <C-R>"<cr>
-vnoremap <silent> <Leader>f y :Ag <C-R>"<cr>
+nnoremap <silent> <C-f> :Ag! <C-R><C-W><cr>
+nnoremap <silent> <Leader>f :Ag! <C-R><C-A><cr>
+vnoremap <silent> <C-f> y :Ag! <C-R>"<cr>
+vnoremap <silent> <Leader>f y :Ag! <C-R>"<cr>
 nnoremap <silent> <Leader>` :Marks<cr>
 nnoremap <silent> <C-g> :GFiles?<cr>
+nnoremap <silent> / :BLines<cr>
+nnoremap <silent> <Leader>/ :Lines<cr>
+nnoremap <silent> q: :History:<cr>
 
 " dbext
 let g:dbext_default_type = 'ODBC'
