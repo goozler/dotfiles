@@ -167,7 +167,7 @@ map <Leader>n :NERDTreeToggle<cr>
 map <Leader>m :NERDTreeFind<cr>
 
 " Neovim
-autocmd! BufReadPost,BufWritePost * Neomake
+autocmd! BufWritePost * Neomake
 " autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
 let g:neomake_error_sign = {'text': 'x'}
 let g:neomake_warning_sign = {'text': '!'}
@@ -187,7 +187,10 @@ function! s:ToggleNeomakeMarkers()
   endif
 endfunction
 
-nnoremap <silent> <Leader>; :call <SID>ToggleNeomakeMarkers()<CR>
+nnoremap <silent> <Leader>' :call <SID>ToggleNeomakeMarkers()<CR>
+
+" IndentLines
+nnoremap <Leader>; :IndentLinesToggle<CR>
 
 " Syntastic
 " let g:syntastic_aggregate_errors = 1

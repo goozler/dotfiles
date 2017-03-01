@@ -54,6 +54,7 @@ Plug 'jwhitley/vim-colors-solarized' " use fork with some fixes
 Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
 Plug 'wesQ3/vim-windowswap'
+Plug 'Yggdroot/indentLine'
 
 " Documentation
 Plug 'danchoi/ri.vim'
