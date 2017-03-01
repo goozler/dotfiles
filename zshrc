@@ -157,9 +157,9 @@ alias rdpristine="rdd && rdc && rdm"
 alias j=z
 alias jj=zz
 
-# if type nvim > /dev/null 2>&1; then
-#   alias vim='nvim'
-# fi
+if type nvim > /dev/null 2>&1; then
+  alias vim='nvim'
+fi
 
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
