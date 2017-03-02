@@ -209,8 +209,8 @@ nnoremap <Leader>; :IndentLinesToggle<CR>
 let g:go_list_type = 'quickfix'
 
 " EasyMotion
-map  <C-_> <Plug>(easymotion-sn)
-omap <C-_> <Plug>(easymotion-tn)
+map  / <Plug>(easymotion-sn)
+omap / <Plug>(easymotion-tn)
 
 " EasyGrep
 let g:EasyGrepFilesToExclude='.git,tags'
@@ -277,7 +277,7 @@ vnoremap <silent> <C-f> y :Ag! <C-R>"<cr>
 vnoremap <silent> <Leader>f y :Ag! <C-R>"<cr>
 nnoremap <silent> <Leader>` :Marks<cr>
 nnoremap <silent> <C-g> :GFiles?<cr>
-nnoremap <silent> / :BLines<cr>
+nnoremap <silent> <C-_> :BLines<cr>
 nnoremap <silent> <Leader>/ :Lines<cr>
 nnoremap <silent> q: :History:<cr>
 

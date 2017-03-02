@@ -65,10 +65,10 @@ Plug 'mhinz/vim-signify'
 
 " Syntax
 Plug 'sheerun/vim-polyglot'
+Plug 'fatih/vim-go', { 'for': 'go' }
 " Plug 'briancollins/vim-jst', { 'for': 'jst' }
 " Plug 'digitaltoad/vim-pug', { 'for': 'pug' }
 " Plug 'elzr/vim-json', { 'for': 'json' }
-" Plug 'fatih/vim-go', { 'for': 'go' }
 " Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
 " Plug 'pangloss/vim-javascript', { 'for': 'js' } | Plug 'mxw/vim-jsx'
 " Plug 'slim-template/vim-slim', { 'for': 'slim' }
