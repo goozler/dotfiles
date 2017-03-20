@@ -36,12 +36,7 @@ Plug 'tpope/vim-unimpaired'
 " Snippets
 Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
 
-" Databases
-Plug 'vim-scripts/dbext.vim'
-
 " Lint
-" Plug 'scrooloose/syntastic' | Plug 'mtscout6/syntastic-local-eslint.vim' " , { 'on': 'SyntasticCheck' }
-" Plug 'scrooloose/syntastic'
 Plug 'neomake/neomake'
 
 " Tmux
@@ -66,12 +61,4 @@ Plug 'mhinz/vim-signify'
 " Syntax
 Plug 'sheerun/vim-polyglot'
 Plug 'fatih/vim-go', { 'for': 'go' }
-" Plug 'briancollins/vim-jst', { 'for': 'jst' }
-" Plug 'digitaltoad/vim-pug', { 'for': 'pug' }
-" Plug 'elzr/vim-json', { 'for': 'json' }
-" Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
-" Plug 'pangloss/vim-javascript', { 'for': 'js' } | Plug 'mxw/vim-jsx'
-" Plug 'slim-template/vim-slim', { 'for': 'slim' }
-" Plug 'tpope/vim-haml', { 'for': ['haml', 'sass', 'scss'] }
-" Plug 'vim-ruby/vim-ruby', { 'for': 'ruby' }
 call plug#end()

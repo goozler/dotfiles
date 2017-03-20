@@ -285,9 +285,6 @@ nnoremap <silent> <C-_> :BLines<cr>
 nnoremap <silent> <Leader>/ :Lines<cr>
 nnoremap <silent> q: :History:<cr>
 
-" dbext
-" let g:dbext_default_type = 'ODBC'
-
 " ri.vim
 let g:ri_no_mappings=1
 nnoremap <Leader>ri :call ri#OpenSearchPrompt(0)<cr> " horizontal split
