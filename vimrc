@@ -167,7 +167,7 @@ let NERDTreeShowHidden=1 " Always show dot files
 map <Leader>n :NERDTreeToggle<cr>
 map <Leader>m :NERDTreeFind<cr>
 
-" Neovim
+" Neomake
 autocmd! BufWritePost * Neomake
 " autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
 let g:neomake_javascript_enabled_makers = ['eslint']
@@ -264,6 +264,9 @@ let g:fzf_action = {
   \ 'ctrl-x': 'split',
   \ 'ctrl-s': 'vsplit' }
 
+command! -bang -nargs=? -complete=dir Files
+  \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
+
 command! -bang -nargs=* Ag
   \ call fzf#vim#ag(<q-args>,
   \                 <bang>0 ? fzf#vim#with_preview('up:60%')
@@ -283,7 +286,7 @@ nnoremap <silent> <Leader>/ :Lines<cr>
 nnoremap <silent> q: :History:<cr>
 
 " dbext
-let g:dbext_default_type = 'ODBC'
+" let g:dbext_default_type = 'ODBC'
 
 " ri.vim
 let g:ri_no_mappings=1

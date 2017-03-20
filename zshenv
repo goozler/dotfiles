@@ -12,3 +12,5 @@ export FZF_DEFAULT_COMMAND="ag --hidden \
   -g ''"
 export FZF_CTRL_T_COMMAND="ag -g ''"
 export GOPATH=$HOME
+export PKG_CONFIG_PATH="/usr/local/opt/imagemagick@6/lib/pkgconfig:\
+/usr/local/lib/pkgconfig"

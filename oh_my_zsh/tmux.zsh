@@ -27,3 +27,9 @@ ftpane() {
   fi
 }
 
+tmux-processes() {
+  for s in `tmux list-sessions -F '#{session_name}'` ; do
+    echo "\n$s\n--------------------"
+    tmux list-panes -t "$s" -s -F "#{pane_pid} #{pane_current_command}"
+  done
+}
