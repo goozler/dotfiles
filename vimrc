@@ -59,11 +59,11 @@ set showmatch  " highlight matching [{()}] "
 set showmode " show the current mode
 set title " show the filename in the window titlebar
 set lcs=tab:▸\ ,trail:·,nbsp:_ " show 'invisible' characters
-if !has('nvim')
+if has('nvim')
+  " set termguicolors
+else
   set term=screen-256color " 256-color terminal
   set wildmenu " visual autocomplete for command menu
-else
-  let base16colorspace=256
 endif
 
 " change cursor view for insert/normal mode
@@ -155,10 +155,6 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 set background=dark
 colorscheme solarized
 
-" Old one
-" colorscheme lucius
-" LuciusWhite
-
 " ======================================
 " PLUGIN SETTINGS AND MAPPINGS
 " ======================================
@@ -234,14 +230,11 @@ let g:splitjoin_join_mapping = ''
 nnoremap gss :SplitjoinSplit<cr>
 nnoremap gsj :SplitjoinJoin<cr>
 
-" Vroom
-let g:vroom_use_spring = 0 " override in a local config
-let g:vroom_cucumber_path = 'cucumber '
-let g:vroom_map_keys = 0
-let g:vroom_use_vimux = 1
-nnoremap <silent> <leader>t :VroomRunTestFile<cr>
-nnoremap <silent> <leader>T :VroomRunNearestTest<cr>
-nnoremap <silent> <leader>l :VroomRunLastTest<cr>
+" Vim-test
+let test#strategy = "vimux"
+nmap <silent> <leader>t :TestNearest<CR>
+nmap <silent> <leader>T :TestFile<CR>
+nmap <silent> <leader>l :TestLast<CR>
 
 " Buffergator
 let g:buffergator_suppress_keymaps = 1

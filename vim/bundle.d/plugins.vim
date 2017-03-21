@@ -10,6 +10,7 @@ Plug 'dkprice/vim-easygrep'
 Plug 'easymotion/vim-easymotion'
 Plug 'editorconfig/editorconfig-vim'
 Plug 'gorkunov/smartpairs.vim'
+Plug 'janko-m/vim-test'
 Plug 'jeetsukumaran/vim-buffergator'
 Plug 'jpalardy/vim-slime'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
@@ -20,7 +21,6 @@ Plug 'ludovicchabant/vim-gutentags'
 Plug 'majutsushi/tagbar'
 Plug 'mbbill/undotree', { 'on': 'UndotreeToggle' }
 Plug 'moll/vim-node'
-Plug 'skalnik/vim-vroom'
 Plug 'szw/vim-maximizer'
 Plug 'thinca/vim-localrc'
 Plug 'tpope/vim-bundler'
@@ -43,8 +43,6 @@ Plug 'neomake/neomake'
 Plug 'benmills/vimux'
 
 " UI
-" Plug 'jonathanfilip/vim-lucius' " color scheme
-" Plug 'altercation/vim-colors-solarized' " color scheme
 Plug 'jwhitley/vim-colors-solarized' " use fork with some fixes
 Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
