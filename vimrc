@@ -299,11 +299,8 @@ let g:EditorConfig_exclude_patterns = ['fugitive://.*', 'scp://.*']
 let g:smartpairs_nextpairs_key = 'n'
 let g:smartpairs_revert_key = '<C-n>'
 
-" YouCompleteMe
-let g:ycm_show_diagnostics_ui = 0
-let g:ycm_key_list_select_completion = ['<C-n>', '<Down>']
-let g:ycm_key_list_previous_completion = ['<C-p>', '<Up>']
-let g:SuperTabDefaultCompletionType = '<C-n>'
+" Deoplete
+let g:deoplete#enable_at_startup = 1
 
 " Snippets
 let g:UltiSnipsJumpForwardTrigger = "<tab>"
