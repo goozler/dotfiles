@@ -10,6 +10,7 @@
 .byebug_history
 .rake_tasks
 .env.local
+.env.test
 .autoenv.zsh
 *.swp
 .DS_Store

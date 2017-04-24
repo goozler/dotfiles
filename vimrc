@@ -40,9 +40,9 @@ if !has('nvim')
 endif
 
 " Mouse
+set mouse=a
 if !has('nvim')
   silent! set ttymouse=xterm2
-  set mouse=a
 endif
 
 " Shift-tab on GNU screen
@@ -190,18 +190,6 @@ nnoremap <silent> <Leader>' :call <SID>ToggleNeomakeMarkers()<CR>
 " IndentLines
 nnoremap <Leader>; :IndentLinesToggle<CR>
 
-" Syntastic
-" let g:syntastic_aggregate_errors = 1
-" let g:syntastic_always_populate_loc_list = 1
-" let g:syntastic_auto_loc_list = 0
-" let g:syntastic_check_on_wq = 0
-" let g:syntastic_loc_list_height = 5
-" let g:syntastic_go_checkers = ['golint', 'govet', 'gometalinter']
-" let g:syntastic_javascript_checkers = ['javascript/eslint']
-" let g:syntastic_ruby_checkers = ['mri', 'rubocop']
-" let g:syntastic_slim_checkers = ['slim_lint', 'slimrb']
-" nnoremap <Leader>; :SyntasticToggleMode<cr>
-
 " Go
 let g:go_list_type = 'quickfix'
 
@@ -224,6 +212,12 @@ nmap gcc <Plug>CommentaryLine
 " Trailing whitespace
 noremap <Leader>ss :FixWhitespace<cr>
 
+" GutenTags
+let g:gutentags_file_list_command = {
+      \ 'markers': {
+        \ 'bundler': 'bundle list --paths'
+        \ },
+      \ }
 " Splitjoin
 let g:splitjoin_split_mapping = ''
 let g:splitjoin_join_mapping = ''
