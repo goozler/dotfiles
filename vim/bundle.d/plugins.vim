@@ -41,6 +41,7 @@ Plug 'neomake/neomake'
 
 " Tmux
 Plug 'benmills/vimux'
+Plug 'tmux-plugins/vim-tmux-focus-events'
 
 " UI
 Plug 'jwhitley/vim-colors-solarized' " use fork with some fixes
