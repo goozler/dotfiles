@@ -154,6 +154,7 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " ======================================
 set background=dark
 colorscheme solarized
+call togglebg#map("<F5>")
 
 " ======================================
 " PLUGIN SETTINGS AND MAPPINGS
