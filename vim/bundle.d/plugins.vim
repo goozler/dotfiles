@@ -1,7 +1,6 @@
 call plug#begin('~/.vim/plugged')
 " Edit
 Plug 'AndrewRadev/splitjoin.vim'
-Plug 'Chiel92/vim-autoformat'
 Plug 'DataWraith/auto_mkdir'
 Plug 'Raimondi/delimitMate'
 Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
@@ -21,10 +20,12 @@ Plug 'ludovicchabant/vim-gutentags'
 Plug 'majutsushi/tagbar'
 Plug 'mbbill/undotree', { 'on': 'UndotreeToggle' }
 Plug 'moll/vim-node'
+Plug 'sbdchd/neoformat'
 Plug 'szw/vim-maximizer'
 Plug 'thinca/vim-localrc'
 Plug 'tpope/vim-bundler'
 Plug 'tpope/vim-commentary'
+Plug 'tpope/vim-cucumber'
 Plug 'tpope/vim-endwise'
 Plug 'tpope/vim-eunuch'
 Plug 'tpope/vim-obsession'
@@ -44,7 +45,7 @@ Plug 'benmills/vimux'
 Plug 'tmux-plugins/vim-tmux-focus-events'
 
 " UI
-Plug 'jwhitley/vim-colors-solarized' " use fork with some fixes
+Plug 'lifepillar/vim-solarized8'
 Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
 Plug 'wesQ3/vim-windowswap'
