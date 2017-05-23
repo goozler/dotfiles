@@ -12,7 +12,7 @@ ZSH_THEME_GIT_PROMPT_BEHIND="%{$fg_bold[red]%}↓"
 git_custom_status() {
   local cb=$(current_branch)
   if [ -n "$cb" ]; then
-    echo "$(parse_git_dirty)%{$fg_bold[yellow]%}$(work_in_progress)%{$reset_color%}$ZSH_THEME_GIT_PROMPT_PREFIX$cb$(git_prompt_ahead)$(git_prompt_behind)$ZSH_THEME_GIT_PROMPT_SUFFIX"
+    echo "$(parse_git_dirty)%{$fg_bold[yellow]%}$(work_in_progress)$(git_prompt_ahead)$(git_prompt_behind)%{$reset_color%}$ZSH_THEME_GIT_PROMPT_PREFIX$cb$ZSH_THEME_GIT_PROMPT_SUFFIX"
   fi
 }
 

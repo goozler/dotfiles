@@ -154,7 +154,6 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " ======================================
 " set background=light
 colorscheme solarized8_light
-" call togglebg#map("<F5>")
 nnoremap  <F5> :<c-u>exe "colors" (g:colors_name =~# "dark"
   \ ? substitute(g:colors_name, 'dark', 'light', '')
   \ : substitute(g:colors_name, 'light', 'dark', '')
