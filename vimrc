@@ -32,6 +32,7 @@ set synmaxcol=120
 set timeout timeoutlen=500 ttimeoutlen=100 " fix slow O inserts
 set ve=block " allow put the cursor anyway in visual block mode
 set complete=.,w,b,u,t,i,kspell
+set completefunc=syntaxcomplete#Complete
 if !has('nvim')
   set autoread
   set backspace=indent,eol,start " enable Backspace in insert mode
