@@ -55,7 +55,6 @@ plugins=(
   brew-cask
   capistrano
   docker
-  docker-compose
   gem
   git
   heroku
@@ -156,6 +155,25 @@ alias gs='gst'
 alias rdpristine="rdd && rdc && rdm"
 alias j=z
 alias jj=zz
+
+alias dco=docker-compose
+alias dcps='docker-compose ps'
+alias dcrestart='docker-compose restart'
+alias dcstop='docker-compose stop'
+alias dcup='docker-compose up'
+alias dcl='docker-compose logs'
+alias dclf='docker-compose logs -f'
+alias dcb='docker-compose build'
+alias dcrs='docker-compose run --rm --service-ports'
+alias dcr='docker-compose run --rm'
+alias dm=docker-machine
+alias dma='docker-machine active'
+
+# Use dev docker machine as a default
+export DOCKER_TLS_VERIFY="1"
+export DOCKER_HOST="tcp://10.211.55.3:2376" # hope won't change
+export DOCKER_CERT_PATH="/Users/goozler/.docker/machine/machines/dev"
+export DOCKER_MACHINE_NAME="dev"
 
 if type nvim > /dev/null 2>&1; then
   alias vim='nvim'

@@ -35,6 +35,10 @@ Plug 'tpope/vim-rhubarb'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-unimpaired'
 
+" Spelling
+Plug 'dpelle/vim-LanguageTool'
+Plug 'suoto/vim-translator'
+
 " Snippets
 Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
 

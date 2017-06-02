@@ -68,9 +68,7 @@ else
 endif
 
 " change cursor view for insert/normal mode
-if has('nvim')
-  let $NVIM_TUI_ENABLE_CURSOR_SHAPE=1
-else
+if !has('nvim')
   " tmux will only forward escape sequences to the terminal if surrounded by a DCS sequence
   " http://sourceforge.net/mailarchive/forum.php?thread_name=AANLkTinkbdoZ8eNR1X2UobLTeww1jFrvfJxTMfKSq-L%2B%40mail.gmail.com&forum_name=tmux-users
   if exists('$TMUX')
@@ -307,6 +305,13 @@ let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
 
 " Tagbar
 nmap <C-t> :TagbarToggle<CR>
+
+" LanguageTool
+" let g:languagetool_jar = '/usr/local/Cellar/languagetool/3.6/libexec/languagetool-commandline.jar'
+
+" Translator
+" let g:translate_cmd = 'trans -b -t ru'
+" vmap T <Plug>Translate
 
 " Syntax JSX
 " let g:jsx_ext_required = 0 " highlight .js files too
