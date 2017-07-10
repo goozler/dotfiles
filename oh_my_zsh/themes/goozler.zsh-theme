@@ -24,6 +24,10 @@ node_version() {
   echo "%{$fg[yellow]%}[$(node --version | sed 's/^v//')]%{$reset_color%}"
 }
 
+docker_machine() {
+  echo "%{$fg[blue]%}[$DOCKER_MACHINE_NAME]%{$reset_color%}"
+}
+
 # Combine it all into a final right-side prompt
 string='$(git_custom_status)'
 
@@ -33,6 +37,10 @@ fi
 
 if which node &> /dev/null; then
   string=$string' $(node_version)'
+fi
+
+if [[ -n $DOCKER_MACHINE_NAME ]]; then
+  string=$string' $(docker_machine)'
 fi
 
 RPS1=$string$EPS1

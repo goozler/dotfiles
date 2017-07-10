@@ -307,11 +307,11 @@ let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
 nmap <C-t> :TagbarToggle<CR>
 
 " LanguageTool
-" let g:languagetool_jar = '/usr/local/Cellar/languagetool/3.6/libexec/languagetool-commandline.jar'
+let g:languagetool_jar = '/usr/local/Cellar/languagetool/3.6/libexec/languagetool-commandline.jar'
 
 " Translator
-" let g:translate_cmd = 'trans -b -t ru'
-" vmap T <Plug>Translate
+let g:translate_cmd = 'trans -b -t ru'
+vmap T <Plug>Translate
 
 " Syntax JSX
 " let g:jsx_ext_required = 0 " highlight .js files too
