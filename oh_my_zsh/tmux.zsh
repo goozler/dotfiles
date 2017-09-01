@@ -8,6 +8,7 @@ fs() {
   tmux switch-client -t "$session"
 }
 
+# ftpane - switch pane (@george-b)
 ftpane() {
   local panes current_window current_pane target target_window target_pane
   panes=$(tmux list-panes -s -F '#I:#P - #{pane_current_path} #{pane_current_command}')
@@ -23,7 +24,7 @@ ftpane() {
     tmux select-pane -t ${target_window}.${target_pane}
   else
     tmux select-pane -t ${target_window}.${target_pane} &&
-      tmux select-window -t $target_window
+    tmux select-window -t $target_window
   fi
 }
 

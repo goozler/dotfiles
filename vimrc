@@ -170,6 +170,7 @@ map <Leader>m :NERDTreeFind<cr>
 autocmd! BufWritePost * Neomake
 " autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
 let g:neomake_javascript_enabled_makers = ['eslint']
+let g:neomake_javascript_jsx_enabled_makers = ['eslint']
 let g:neomake_error_sign = {'text': 'x'}
 let g:neomake_warning_sign = {'text': '!'}
 let g:neomake_message_sign = {'text': '>'}

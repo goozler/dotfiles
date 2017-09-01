@@ -1,5 +1,5 @@
 viw() {
-  vim `which "$1"`
+  nvim `which "$1"`
 }
 
 gitzip() {
