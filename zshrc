@@ -62,7 +62,6 @@ plugins=(
   npm
   ocx
   per-directory-history
-  rails
   rake
   tmux
   vagrant
@@ -81,6 +80,7 @@ export PATH="/usr/local/bin:"\
 "/usr/local/bin:"\
 "/usr/local/sbin:"\
 "/usr/sbin:"\
+"~/bin:"\
 "$PATH"
 
 # export MANPATH="/usr/local/man:$MANPATH"
@@ -105,7 +105,17 @@ export EDITOR='nvim'
 # export SSH_KEY_PATH="~/.ssh/dsa_id"
 
 fpath=(/usr/local/share/zsh-completions $fpath)
+
+# FZF
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+_fzf_compgen_path() {
+  rg --files "$1" | with-dir "$1"
+}
+
+_fzf_compgen_dir() {
+  rg --files "$1" | only-dir "$1"
+}
 
 _gen_fzf_default_opts() {
   local base03="234"
