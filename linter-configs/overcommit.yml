@@ -24,8 +24,6 @@ CommitMsg:
 PreCommit:
   ALL:
     problem_on_unmodified_line: ignore
-  BundleCheck:
-    enabled: true
   CoffeeLint:
     enabled: true
   CssLint:
@@ -60,10 +58,6 @@ PreCommit:
       - vendor/**/*
       - features/vcr/**/*
   YamlSyntax:
-    enabled: true
-
-PrePush:
-  RSpec:
     enabled: true
 
 PostCheckout:

@@ -11,7 +11,7 @@ Plug 'editorconfig/editorconfig-vim'
 Plug 'gorkunov/smartpairs.vim'
 Plug 'janko-m/vim-test'
 Plug 'jeetsukumaran/vim-buffergator'
-Plug 'jpalardy/vim-slime'
+Plug 'jpalardy/vim-slime' " REPL
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-easy-align'
