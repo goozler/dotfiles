@@ -6,3 +6,5 @@ export FZF_CTRL_T_COMMAND="rg --files"
 export GOPATH=$HOME
 export PKG_CONFIG_PATH="/usr/local/opt/imagemagick@6/lib/pkgconfig:\
 /usr/local/lib/pkgconfig"
+
+[[ -f ~/.zshenv.local ]] && source ~/.zshenv.local
