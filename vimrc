@@ -151,8 +151,9 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " ======================================
 " COLOR SCHEME
 " ======================================
-" set background=light
-colorscheme solarized8_light
+let g:solarized_use16 = 1
+set background=light
+colorscheme solarized8
 nnoremap  <F5> :<c-u>exe "colors" (g:colors_name =~# "dark"
   \ ? substitute(g:colors_name, 'dark', 'light', '')
   \ : substitute(g:colors_name, 'light', 'dark', '')
