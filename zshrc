@@ -78,6 +78,7 @@ export PATH="/usr/local/bin:"\
 "/sbin:"\
 "/usr/bin:"\
 "/usr/local/bin:"\
+"/usr/local/opt/python/libexec/bin:"\
 "/usr/local/sbin:"\
 "/usr/sbin:"\
 "~/bin:"\
@@ -176,6 +177,10 @@ alias dclf='docker-compose logs -f'
 alias dcb='docker-compose build'
 alias dcrs='docker-compose run --rm --service-ports'
 alias dcr='docker-compose run --rm'
+alias dr='docker run --rm'
+alias drit='docker run --rm -it'
+alias drs='docker run --rm --service-ports'
+alias ds='docker stop'
 alias dm=docker-machine
 alias dma='docker-machine active'
 
