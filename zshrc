@@ -184,12 +184,6 @@ alias ds='docker stop'
 alias dm=docker-machine
 alias dma='docker-machine active'
 
-# Use dev docker machine as a default
-export DOCKER_TLS_VERIFY="1"
-export DOCKER_HOST="tcp://10.211.55.3:2376" # hope won't change
-export DOCKER_CERT_PATH="/Users/goozler/.docker/machine/machines/dev"
-export DOCKER_MACHINE_NAME="dev"
-
 if type nvim > /dev/null 2>&1; then
   alias vim='nvim'
 fi

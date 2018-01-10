@@ -141,6 +141,16 @@ endif
 let g:airline_powerline_fonts = 1
 let g:airline#extensions#tabline#enabled = 1
 
+" Apply a macros to a visual selection
+" https://github.com/stoeffel/.dotfiles/blob/master/vim/visual-at.vim
+" From the book: https://pragprog.com/book/dnvim/practical-vim
+xnoremap @ :<C-u>call ExecuteMacroOverVisualRange()<CR>
+
+function! ExecuteMacroOverVisualRange()
+  echo "@".getcmdline()
+  execute ":'<,'>normal @".nr2char(getchar())
+endfunction
+
 " Ignore this paths
 set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*/build/*,*/node_modules/*,
 set wildignore+=*/bower_components/*,*/test/files/*,*/features/vcr/*,*.cache
@@ -162,6 +172,9 @@ nnoremap  <F5> :<c-u>exe "colors" (g:colors_name =~# "dark"
 " ======================================
 " PLUGIN SETTINGS AND MAPPINGS
 " ======================================
+" Markdown
+let g:vim_markdown_conceal = 0
+
 " NerdTree
 let NERDTreeShowHidden=1 " Always show dot files
 map <Leader>n :NERDTreeToggle<cr>
