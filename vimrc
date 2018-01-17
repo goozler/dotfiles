@@ -183,6 +183,7 @@ map <Leader>m :NERDTreeFind<cr>
 " Neomake
 autocmd! BufWritePost * Neomake
 " autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
+let g:neomake_elixir_enabled_makers = ['mix', 'credo']
 let g:neomake_javascript_enabled_makers = ['eslint']
 let g:neomake_javascript_jsx_enabled_makers = ['eslint']
 let g:neomake_error_sign = {'text': 'x'}
@@ -317,9 +318,6 @@ let g:deoplete#enable_at_startup = 1
 " Snippets
 let g:UltiSnipsJumpForwardTrigger = "<tab>"
 let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
-
-" Tagbar
-nmap <C-t> :TagbarToggle<CR>
 
 " LanguageTool
 let g:languagetool_jar = '/usr/local/Cellar/languagetool/3.6/libexec/languagetool-commandline.jar'
