@@ -258,6 +258,9 @@ nnoremap <silent> gB :BuffergatorMruCycleNext<CR>
 " Signify
 let g:signify_vcs_list = ['git']
 
+" Neoformat
+nnoremap <silent> <leader>[ :Neoformat<CR>
+
 " EasyAlign
 " Start interactive EasyAlign in visual mode (e.g. vipga)
 xmap ga <Plug>(EasyAlign)
@@ -318,13 +321,6 @@ let g:deoplete#enable_at_startup = 1
 " Snippets
 let g:UltiSnipsJumpForwardTrigger = "<tab>"
 let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
-
-" LanguageTool
-let g:languagetool_jar = '/usr/local/Cellar/languagetool/3.6/libexec/languagetool-commandline.jar'
-
-" Translator
-let g:translate_cmd = 'trans -b -t ru'
-vmap T <Plug>Translate
 
 " Syntax JSX
 " let g:jsx_ext_required = 0 " highlight .js files too

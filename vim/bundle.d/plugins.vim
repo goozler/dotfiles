@@ -20,7 +20,6 @@ Plug 'ludovicchabant/vim-gutentags'
 Plug 'mbbill/undotree', { 'on': 'UndotreeToggle' }
 Plug 'moll/vim-node'
 Plug 'sbdchd/neoformat'
-Plug 'slashmili/alchemist.vim'
 Plug 'szw/vim-maximizer'
 Plug 'thinca/vim-localrc'
 Plug 'tpope/vim-bundler'
@@ -34,10 +33,6 @@ Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-rhubarb'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-unimpaired'
-
-" Spelling
-Plug 'dpelle/vim-LanguageTool'
-Plug 'suoto/vim-translator'
 
 " Snippets
 Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
@@ -68,4 +63,6 @@ Plug 'mhinz/vim-signify'
 Plug 'sheerun/vim-polyglot'
 Plug 'fatih/vim-go', { 'for': 'go' }
 Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
+
+Plug 'slashmili/alchemist.vim', { 'for': 'elixir' }
 call plug#end()
