@@ -183,9 +183,18 @@ map <Leader>m :NERDTreeFind<cr>
 " Neomake
 autocmd! BufWritePost * Neomake
 " autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
+
+let g:neomake_pug_eslint_maker = {
+      \ 'args': ['-f', 'compact'],
+      \ 'errorformat': '%E%f: line %l\, col %c\, Error - %m,' .
+      \   '%W%f: line %l\, col %c\, Warning - %m,%-G,%-G%*\d problems%#',
+      \ 'cwd': '%:p:h',
+      \ }
+
 let g:neomake_elixir_enabled_makers = ['mix', 'credo']
 let g:neomake_javascript_enabled_makers = ['eslint']
 let g:neomake_javascript_jsx_enabled_makers = ['eslint']
+let g:neomake_pug_enabled_makers = ['puglint', 'eslint']
 let g:neomake_error_sign = {'text': 'x'}
 let g:neomake_warning_sign = {'text': '!'}
 let g:neomake_message_sign = {'text': '>'}
@@ -237,6 +246,7 @@ let g:gutentags_file_list_command = {
         \ 'bundler': 'bundle list --paths'
         \ },
       \ }
+
 " Splitjoin
 let g:splitjoin_split_mapping = ''
 let g:splitjoin_join_mapping = ''
@@ -245,6 +255,7 @@ nnoremap gsj :SplitjoinJoin<cr>
 
 " Vim-test
 let test#strategy = "vimux"
+let g:test#ruby#minitest#executable = './bin/rake test'
 nmap <silent> <leader>t :TestNearest<CR>
 nmap <silent> <leader>T :TestFile<CR>
 nmap <silent> <leader>l :TestLast<CR>
@@ -321,9 +332,6 @@ let g:deoplete#enable_at_startup = 1
 " Snippets
 let g:UltiSnipsJumpForwardTrigger = "<tab>"
 let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
-
-" Syntax JSX
-" let g:jsx_ext_required = 0 " highlight .js files too
 
 " ======================================
 " CUSTOM MAPPINGS

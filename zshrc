@@ -53,18 +53,14 @@ DISABLE_AUTO_UPDATE="true"
 plugins=(
   brew
   brew-cask
-  capistrano
   docker
-  gem
   git
   heroku
   history
   npm
   ocx
   per-directory-history
-  rake
   tmux
-  vagrant
   z
 )
 
@@ -92,12 +88,11 @@ source $ZSH/oh-my-zsh.sh
 export LANG=en_US.UTF-8
 
 # Preferred editor for local and remote sessions
-export EDITOR='nvim'
-# if [[ -n $SSH_CONNECTION ]]; then
-#   export EDITOR='vim'
-# else
-#   export EDITOR='mvim'
-# fi
+if [[ -n $SSH_CONNECTION ]]; then
+  export EDITOR='vim'
+else
+  export EDITOR='nvim'
+fi
 
 # Compilation flags
 # export ARCHFLAGS="-arch x86_64"
@@ -184,8 +179,11 @@ alias ds='docker stop'
 alias dm=docker-machine
 alias dma='docker-machine active'
 
+alias nvim='MIX_ENV=vim nvim'
 if type nvim > /dev/null 2>&1; then
-  alias vim='nvim'
+  alias vim='MIX_ENV=vim nvim'
+  alias vi='MIX_ENV=vim nvim'
+  alias v='MIX_ENV=vim nvim'
 fi
 
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi

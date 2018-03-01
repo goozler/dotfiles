@@ -3,7 +3,7 @@ cd `dirname "$0"`
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
 
-FILES=("docker" "fzf" "helpers" "vim")
+FILES=("docker" "fzf" "helpers" "history" "vim")
 for file in "${FILES[@]}"; do
   if [ -f "$HOME/.oh-my-zsh/custom/$file.zsh" ]; then
     mv -v $HOME/.oh-my-zsh/custom/$file.zsh $HOME/.oh-my-zsh/custom/$file.zsh.old

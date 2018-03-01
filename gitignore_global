@@ -19,7 +19,9 @@ Result
 .sql
 .patches
 tags
+!tags/
 tags.lock
 tags.temp
 .stuff
 *.log
+config/vim.exs
