@@ -15,7 +15,7 @@ Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-easy-align'
 Plug 'kshenoy/vim-signature'
-Plug 'ludovicchabant/vim-gutentags'
+Plug 'ludovicchabant/vim-gutentags', { 'branch': 'vim7' }
 Plug 'mbbill/undotree', { 'on': 'UndotreeToggle' }
 Plug 'moll/vim-node'
 Plug 'sbdchd/neoformat'
@@ -43,6 +43,7 @@ Plug 'benjie/neomake-local-eslint.vim'
 
 " Tmux
 Plug 'benmills/vimux'
+Plug 'jgdavey/tslime.vim'
 Plug 'tmux-plugins/vim-tmux-focus-events'
 
 " UI
@@ -64,5 +65,9 @@ Plug 'sheerun/vim-polyglot'
 Plug 'fatih/vim-go', { 'for': 'go' }
 Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
 
-Plug 'slashmili/alchemist.vim', { 'for': 'elixir' }
+Plug 'autozimu/LanguageClient-neovim', {
+    \ 'branch': 'next',
+    \ 'do': 'bash install.sh',
+    \ }
+" Plug 'slashmili/alchemist.vim', { 'for': 'elixir' }
 call plug#end()

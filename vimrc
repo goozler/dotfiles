@@ -28,7 +28,7 @@ set nu " enable line numbers
 set pastetoggle=<F9>
 set scrolloff=7 " minimal lines around the cursor
 set shortmess=aIT " short messages
-set synmaxcol=120
+set synmaxcol=130
 set timeout timeoutlen=500 ttimeoutlen=100 " fix slow O inserts
 set ve=block " allow put the cursor anyway in visual block mode
 set complete=.,w,b,u,t,i,kspell
@@ -138,7 +138,7 @@ set backupskip=/tmp/*,/private/tmp/*
 if !has('nvim')
   set laststatus=2 " Always show status line
 endif
-let g:airline_powerline_fonts = 1
+" let g:airline_powerline_fonts = 1
 let g:airline#extensions#tabline#enabled = 1
 
 " Apply a macros to a visual selection
@@ -162,7 +162,7 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " COLOR SCHEME
 " ======================================
 let g:solarized_use16 = 1
-set background=light
+set background=dark
 colorscheme solarized8
 nnoremap  <F5> :<c-u>exe "colors" (g:colors_name =~# "dark"
   \ ? substitute(g:colors_name, 'dark', 'light', '')
@@ -191,7 +191,7 @@ let g:neomake_pug_eslint_maker = {
       \ 'cwd': '%:p:h',
       \ }
 
-let g:neomake_elixir_enabled_makers = ['mix', 'credo']
+let g:neomake_elixir_enabled_makers = ['credo']
 let g:neomake_javascript_enabled_makers = ['eslint']
 let g:neomake_javascript_jsx_enabled_makers = ['eslint']
 let g:neomake_pug_enabled_makers = ['puglint', 'eslint']
@@ -241,11 +241,11 @@ nmap gcc <Plug>CommentaryLine
 noremap <Leader>ss :FixWhitespace<cr>
 
 " GutenTags
-let g:gutentags_file_list_command = {
-      \ 'markers': {
-        \ 'bundler': 'bundle list --paths'
-        \ },
-      \ }
+" let g:gutentags_file_list_command = {
+"       \ 'markers': {
+"         \ 'bundler': 'bundle list --paths'
+"         \ },
+"       \ }
 
 " Splitjoin
 let g:splitjoin_split_mapping = ''
@@ -254,8 +254,8 @@ nnoremap gss :SplitjoinSplit<cr>
 nnoremap gsj :SplitjoinJoin<cr>
 
 " Vim-test
+nmap <leader>tr <Plug>SetTmuxVars
 let test#strategy = "vimux"
-let g:test#ruby#minitest#executable = './bin/rake test'
 nmap <silent> <leader>t :TestNearest<CR>
 nmap <silent> <leader>T :TestFile<CR>
 nmap <silent> <leader>l :TestLast<CR>
@@ -320,7 +320,7 @@ nnoremap <silent><leader>z :MaximizerToggle!<CR>
 vnoremap <silent><leader>z :MaximizerToggle!<CR>gv
 
 " EditorConfig
-let g:EditorConfig_exclude_patterns = ['fugitive://.*', 'scp://.*']
+let g:editorconfig_blacklist = { 'filetype': ['diff', 'fugitive'] }
 
 " Smartpairs
 let g:smartpairs_nextpairs_key = 'n'
@@ -328,10 +328,34 @@ let g:smartpairs_revert_key = '<C-n>'
 
 " Deoplete
 let g:deoplete#enable_at_startup = 1
+let g:deoplete#ignore_sources = {'_': ['LanguageClient']}
+set completeopt-=preview
 
 " Snippets
 let g:UltiSnipsJumpForwardTrigger = "<tab>"
 let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
+let g:UltiSnipsListSnippets = "<leader><tab>"
+
+" LanguageServer
+" Required for operations modifying multiple buffers like rename.
+set hidden
+
+" let g:LanguageClient_loggingLevel = 'DEBUG'
+" let g:LanguageClient_serverStderr = '/Users/goozler/ls-errors.log'
+" let g:LanguageClient_loggingFile = '/Users/goozler/ls.log'
+let g:LanguageClient_diagnosticsEnable = 0
+let g:LanguageClient_hasSnippetSupport = 0
+let g:LanguageClient_windowLogMessageLevel = 'Error'
+let g:LanguageClient_serverCommands = {
+  \ 'elixir': ['elixir-ls'],
+  \ 'javascript.jsx': ['javascript-typescript-stdio']
+\ }
+nnoremap <F5> :call LanguageClient_contextMenu()<CR>
+nnoremap <silent> K :call LanguageClient#textDocument_hover()<CR>
+nnoremap <silent> gd :call LanguageClient#textDocument_definition()<CR>
+nnoremap <silent> <F2> :call LanguageClient#textDocument_rename()<CR>
+nnoremap <silent> <leader>kc :call LanguageClient#textDocument_references()<CR>
+nnoremap <silent> <leader>ks :call LanguageClient#textDocument_documentSymbol()<CR>
 
 " ======================================
 " CUSTOM MAPPINGS
@@ -387,3 +411,6 @@ nnoremap <silent> <F8> :call VimuxRunCommand('clear;make;./'.expand('%:r'))<CR>
 " Remap ctrl-p ctrl-n
 inoremap <C-j> <C-n>
 inoremap <C-k> <C-p>
+
+" Remap increase number because of Tmux
+nnoremap <C-w> <C-a>

@@ -1,4 +1,5 @@
 .overcommit.yml
+.pre-commit-config.yaml
 .rubocop.yml
 .scss-lint.yml
 .slim-lint.yml
@@ -18,10 +19,11 @@
 Result
 .sql
 .patches
-tags
+/tags
+/dumps
 !tags/
 tags.lock
 tags.temp
 .stuff
 *.log
-config/vim.exs
+config/edit.exs

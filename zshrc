@@ -134,15 +134,15 @@ _gen_fzf_default_opts() {
   # Comment and uncomment below for the light theme.
 
   # Solarized Dark color scheme for fzf
-  # export FZF_DEFAULT_OPTS="
-  #   --color fg:-1,bg:-1,hl:$blue,fg+:$base2,bg+:$base02,hl+:$blue
-  #   --color info:$yellow,prompt:$yellow,pointer:$base3,marker:$base3,spinner:$yellow
-  # "
-  ## Solarized Light color scheme for fzf
   export FZF_DEFAULT_OPTS="
-    --color fg:-1,bg:-1,hl:$blue,fg+:$base02,bg+:$base2,hl+:$blue
-    --color info:$yellow,prompt:$yellow,pointer:$base03,marker:$base03,spinner:$yellow
+    --color fg:-1,bg:-1,hl:$blue,fg+:$base2,bg+:$base02,hl+:$blue
+    --color info:$yellow,prompt:$yellow,pointer:$base3,marker:$base3,spinner:$yellow
   "
+  ## Solarized Light color scheme for fzf
+  # export FZF_DEFAULT_OPTS="
+  #   --color fg:-1,bg:-1,hl:$blue,fg+:$base02,bg+:$base2,hl+:$blue
+  #   --color info:$yellow,prompt:$yellow,pointer:$base03,marker:$base03,spinner:$yellow
+  # "
 }
 _gen_fzf_default_opts
 
@@ -156,8 +156,9 @@ _gen_fzf_default_opts
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 alias be='bundle exec'
-alias gups='gaa && gsta && gup && gstp && g reset'
+alias gups='gsta && gup && gstp'
 alias gs='gst'
+alias gsta='git stash push -u'
 alias rdpristine="rdd && rdc && rdm"
 alias j=z
 alias jj=zz
@@ -179,11 +180,11 @@ alias ds='docker stop'
 alias dm=docker-machine
 alias dma='docker-machine active'
 
-alias nvim='MIX_ENV=vim nvim'
+alias nvim='MIX_ENV=edit nvim'
 if type nvim > /dev/null 2>&1; then
-  alias vim='MIX_ENV=vim nvim'
-  alias vi='MIX_ENV=vim nvim'
-  alias v='MIX_ENV=vim nvim'
+  alias vim='MIX_ENV=edit nvim'
+  alias vi='MIX_ENV=edit nvim'
+  alias v='MIX_ENV=edit nvim'
 fi
 
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
