@@ -28,7 +28,7 @@ set nu " enable line numbers
 set pastetoggle=<F9>
 set scrolloff=7 " minimal lines around the cursor
 set shortmess=aIT " short messages
-set synmaxcol=130
+set synmaxcol=180
 set timeout timeoutlen=500 ttimeoutlen=100 " fix slow O inserts
 set ve=block " allow put the cursor anyway in visual block mode
 set complete=.,w,b,u,t,i,kspell
@@ -138,7 +138,7 @@ set backupskip=/tmp/*,/private/tmp/*
 if !has('nvim')
   set laststatus=2 " Always show status line
 endif
-" let g:airline_powerline_fonts = 1
+let g:airline_powerline_fonts = 0
 let g:airline#extensions#tabline#enabled = 1
 
 " Apply a macros to a visual selection
@@ -162,7 +162,7 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " COLOR SCHEME
 " ======================================
 let g:solarized_use16 = 1
-set background=dark
+set background=light
 colorscheme solarized8
 nnoremap  <F5> :<c-u>exe "colors" (g:colors_name =~# "dark"
   \ ? substitute(g:colors_name, 'dark', 'light', '')
@@ -332,9 +332,11 @@ let g:deoplete#ignore_sources = {'_': ['LanguageClient']}
 set completeopt-=preview
 
 " Snippets
-let g:UltiSnipsJumpForwardTrigger = "<tab>"
-let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
-let g:UltiSnipsListSnippets = "<leader><tab>"
+let g:UltiSnipsJumpForwardTrigger = '<tab>'
+let g:UltiSnipsJumpBackwardTrigger = '<s-tab>'
+let g:UltiSnipsListSnippets = '<leader><tab>'
+let g:UltiSnipsEditSplit = 'vertical'
+let g:UltiSnipsSnippetDirectories=['UltiSnips', $HOME.'/dotfiles/vim/UltiSnips']
 
 " LanguageServer
 " Required for operations modifying multiple buffers like rename.
@@ -411,6 +413,3 @@ nnoremap <silent> <F8> :call VimuxRunCommand('clear;make;./'.expand('%:r'))<CR>
 " Remap ctrl-p ctrl-n
 inoremap <C-j> <C-n>
 inoremap <C-k> <C-p>
-
-" Remap increase number because of Tmux
-nnoremap <C-w> <C-a>
