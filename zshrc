@@ -77,7 +77,7 @@ export PATH="/usr/local/bin:"\
 "/usr/local/opt/python/libexec/bin:"\
 "/usr/local/sbin:"\
 "/usr/sbin:"\
-"~/bin:"\
+"$HOME/bin:"\
 "$PATH"
 
 # export MANPATH="/usr/local/man:$MANPATH"

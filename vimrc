@@ -221,6 +221,9 @@ nnoremap <Leader>; :IndentLinesToggle<CR>
 " Go
 let g:go_list_type = 'quickfix'
 
+" Polyglot
+let g:polyglot_disabled = ['go'] " https://github.com/fatih/vim-go/issues/2045
+
 " EasyMotion
 map  / <Plug>(easymotion-sn)
 omap / <Plug>(easymotion-tn)

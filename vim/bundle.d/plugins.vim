@@ -61,13 +61,12 @@ Plug 'tpope/vim-fugitive'
 Plug 'mhinz/vim-signify'
 
 " Syntax
+Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries', 'for': 'go' }
 Plug 'sheerun/vim-polyglot'
-Plug 'fatih/vim-go', { 'for': 'go' }
 Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
 
 Plug 'autozimu/LanguageClient-neovim', {
     \ 'branch': 'next',
     \ 'do': 'bash install.sh',
     \ }
-" Plug 'slashmili/alchemist.vim', { 'for': 'elixir' }
 call plug#end()
