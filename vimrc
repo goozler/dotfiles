@@ -28,7 +28,7 @@ set nu " enable line numbers
 set pastetoggle=<F9>
 set scrolloff=7 " minimal lines around the cursor
 set shortmess=aIT " short messages
-set synmaxcol=180
+set synmaxcol=250
 set timeout timeoutlen=500 ttimeoutlen=100 " fix slow O inserts
 set ve=block " allow put the cursor anyway in visual block mode
 set complete=.,w,b,u,t,i,kspell
@@ -369,8 +369,8 @@ nnoremap <silent> <leader>ks :call LanguageClient#textDocument_documentSymbol()<
 inoremap jk <Esc>
 
 " Move up/down on wrapped lines
-nmap j gj
-nmap k gk
+" nmap j gj
+" nmap k gk
 
 " Fast split
 nnoremap <silent> <leader>\ :vnew<cr>
