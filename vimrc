@@ -290,18 +290,19 @@ let g:fzf_action = {
 command! -bang -nargs=? -complete=dir Files
   \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
 
-command! -bang -nargs=* Ag
-  \ call fzf#vim#ag(<q-args>,
-  \                 <bang>0 ? fzf#vim#with_preview('up:60%')
-  \                         : fzf#vim#with_preview('right:50%:hidden', '?'),
-  \                 <bang>0)
+command! -bang -nargs=* Rg
+  \ call fzf#vim#grep(
+  \   'rg --column --line-number --no-heading --color=always --smart-case '.shellescape(<q-args>), 1,
+  \   <bang>0 ? fzf#vim#with_preview('up:60%')
+  \           : fzf#vim#with_preview('right:50%:hidden', '?'),
+  \   <bang>0)
 
 nnoremap <silent> <C-b> :Buffers<cr>
 nnoremap <silent> <expr> <C-p> (expand('%') =~ 'NERD_tree' ? "\<c-w>\<c-w>" : '').":Files\<cr>"
-nnoremap <silent> <C-f> :Ag! <C-R><C-W><cr>
-nnoremap <silent> <Leader>f :Ag! <C-R><C-A><cr>
-vnoremap <silent> <C-f> y :Ag! <C-R>"<cr>
-vnoremap <silent> <Leader>f y :Ag! <C-R>"<cr>
+nnoremap <silent> <C-f> :Rg! <C-R><C-W><cr>
+nnoremap <silent> <Leader>f :Rg! <C-R><C-A><cr>
+vnoremap <silent> <C-f> y :Rg! <C-R>"<cr>
+vnoremap <silent> <Leader>f y :Rg! <C-R>"<cr>
 nnoremap <silent> <Leader>` :Marks<cr>
 nnoremap <silent> <C-g> :GFiles?<cr>
 nnoremap <silent> <C-_> :BLines<cr>
