@@ -20,6 +20,10 @@ rbenv_version() {
   echo "%{$fg[red]%}[$(rbenv version | sed -e 's/ (set.*$//')]%{$reset_color%}"
 }
 
+elixir_version() {
+  echo "%{$fg[blue]%}[$(elixir --version | awk '/Elixir/ {print $2}')]%{$reset_color%}"
+}
+
 node_version() {
   echo "%{$fg[yellow]%}[$(node --version | sed 's/^v//')]%{$reset_color%}"
 }
@@ -31,17 +35,21 @@ docker_machine() {
 # Combine it all into a final right-side prompt
 string='$(git_custom_status)'
 
-if which rbenv &> /dev/null; then
-  string=$string' $(rbenv_version)'
-fi
+# if which rbenv &> /dev/null; then
+#   string=$string' $(rbenv_version)'
+# fi
+
+# if which elixir &> /dev/null; then
+#   string=$string' $(elixir_version)'
+# fi
 
 if which node &> /dev/null; then
   string=$string' $(node_version)'
 fi
 
-if [[ -n $DOCKER_MACHINE_NAME ]]; then
-  string=$string' $(docker_machine)'
-fi
+# if [[ -n $DOCKER_MACHINE_NAME ]]; then
+#   string=$string' $(docker_machine)'
+# fi
 
 RPS1=$string$EPS1
 # RPS1='$(git_custom_status) $(rbenv_version) $(node_version)$EPS1'

@@ -27,3 +27,6 @@ tags.temp
 .stuff
 *.log
 config/edit.exs
+/1.sql
+/1.ex
+/1.ruby

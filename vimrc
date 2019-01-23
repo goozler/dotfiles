@@ -162,7 +162,7 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " COLOR SCHEME
 " ======================================
 let g:solarized_use16 = 1
-set background=light
+set background=dark
 colorscheme solarized8
 nnoremap  <F5> :<c-u>exe "colors" (g:colors_name =~# "dark"
   \ ? substitute(g:colors_name, 'dark', 'light', '')
@@ -385,9 +385,12 @@ xmap Q @q
 nnoremap <C-e> 3<C-e>
 nnoremap <C-y> 3<C-y>
 
+" Remap increment number
+nnoremap <C-w> <C-a>
+
 " Faster save and quit
-inoremap <C-s> <C-O>:update<cr>
-nnoremap <C-s> :w<cr>
+" inoremap <C-s> <C-O>:update<cr>
+" nnoremap <C-s> :w<cr>
 nnoremap <leader>s :w<cr>
 nnoremap <leader>w :update<cr>
 nnoremap <Leader>q :q<cr>
