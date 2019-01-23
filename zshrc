@@ -188,6 +188,10 @@ if type nvim > /dev/null 2>&1; then
   alias v='MIX_ENV=edit nvim'
 fi
 
+if [[ -z "$TMUX" ]]; then
+  tmux attach -t base || tmux new -s base
+fi
+
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
 export NVM_DIR="$HOME/.nvm"
