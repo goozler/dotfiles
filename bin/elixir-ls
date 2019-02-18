@@ -1,4 +1,4 @@
 #!/bin/bash
 
-/Users/goozler/tmp/elixir-ls/language_server.sh
+/Users/goozler/tmp/elixir-ls/release/language_server.sh
 # cd /Users/goozler/tmp/elixir-ls && env ERL_LIBS=/Users/goozler/tmp/elixir-ls/lsp mix elixir_ls.language_server

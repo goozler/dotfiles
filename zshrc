@@ -163,6 +163,7 @@ alias glola='git log --graph --pretty='\''%Cred%h%Creset -%C(auto)%d%Creset %s %
 alias rdpristine="rdd && rdc && rdm"
 alias j=z
 alias jj=zz
+alias tach='tmux attach -t base || tmux new -s base'
 
 alias dco=docker-compose
 alias dcps='docker-compose ps'
@@ -192,16 +193,16 @@ if [[ -z "$TMUX" ]]; then
   tmux attach -t base || tmux new -s base
 fi
 
-if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
+# if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
-export NVM_DIR="$HOME/.nvm"
+# export NVM_DIR="$HOME/.nvm"
 # source "/usr/local/opt/nvm/nvm.sh"
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 source ~/.zplug/init.zsh
 zplug "Tarrasch/zsh-autoenv"
-zplug "zplug/zplug"
+zplug 'zplug/zplug', hook-build:'zplug --self-manage'
 
 # Install plugins if there are plugins that have not been installed
 if ! zplug check --verbose; then
@@ -212,4 +213,5 @@ if ! zplug check --verbose; then
 fi
 
 # Then, source plugins and add commands to $PATH
+# zplug load --verbose
 zplug load

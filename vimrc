@@ -385,9 +385,6 @@ xmap Q @q
 nnoremap <C-e> 3<C-e>
 nnoremap <C-y> 3<C-y>
 
-" Remap increment number
-nnoremap <C-w> <C-a>
-
 " Faster save and quit
 " inoremap <C-s> <C-O>:update<cr>
 " nnoremap <C-s> :w<cr>
