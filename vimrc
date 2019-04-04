@@ -390,8 +390,7 @@ nnoremap <C-y> 3<C-y>
 " nnoremap <C-s> :w<cr>
 nnoremap <leader>s :w<cr>
 nnoremap <leader>w :update<cr>
-nnoremap <Leader>q :q<cr>
-nnoremap <Leader>Q :q!<cr>
+nnoremap <Leader>q :close<cr>
 nnoremap <Leader>x :bd<cr>
 nnoremap <Leader>X :bd!<cr>
 
