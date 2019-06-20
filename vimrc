@@ -13,6 +13,9 @@ source ~/.vim/bundle.d/plugins.vim
 let mapleader      = ' '
 let maplocalleader = ' '
 
+let g:python_host_prog=$HOME.'/.asdf/installs/python/2.7.16/bin/python'
+let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.7.3/bin/python'
+
 " Faster redrawing
 set lazyredraw
 if !has('nvim')
@@ -61,7 +64,7 @@ set showmode " show the current mode
 set title " show the filename in the window titlebar
 set lcs=tab:▸\ ,trail:·,nbsp:_ " show 'invisible' characters
 if has('nvim')
-  " set termguicolors
+  set termguicolors
 else
   set term=screen-256color " 256-color terminal
   set wildmenu " visual autocomplete for command menu
@@ -161,13 +164,8 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " ======================================
 " COLOR SCHEME
 " ======================================
-let g:solarized_use16 = 1
-set background=dark
+set background=light
 colorscheme solarized8
-nnoremap  <F5> :<c-u>exe "colors" (g:colors_name =~# "dark"
-  \ ? substitute(g:colors_name, 'dark', 'light', '')
-  \ : substitute(g:colors_name, 'light', 'dark', '')
-  \ )<cr>
 
 " ======================================
 " PLUGIN SETTINGS AND MAPPINGS
@@ -354,7 +352,10 @@ let g:LanguageClient_hasSnippetSupport = 0
 let g:LanguageClient_windowLogMessageLevel = 'Error'
 let g:LanguageClient_serverCommands = {
   \ 'elixir': ['elixir-ls'],
-  \ 'javascript.jsx': ['javascript-typescript-stdio']
+  \ 'javascript.jsx': ['javascript-typescript-stdio'],
+  \ 'javascript': ['javascript-typescript-stdio'],
+  \ 'typescript.tsx': ['javascript-typescript-stdio'],
+  \ 'typescript': ['javascript-typescript-stdio']
 \ }
 nnoremap <F5> :call LanguageClient_contextMenu()<CR>
 nnoremap <silent> K :call LanguageClient#textDocument_hover()<CR>
