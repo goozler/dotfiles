@@ -201,15 +201,16 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 
 source ~/.zplug/init.zsh
 zplug "Tarrasch/zsh-autoenv"
-zplug 'zplug/zplug', hook-build:'zplug --self-manage'
+zplug 'zplug/zplug'
+# zplug 'zplug/zplug', hook-build:'zplug --self-manage'
 
 # Install plugins if there are plugins that have not been installed
-if ! zplug check --verbose; then
-  printf "Install? [y/N]: "
-  if read -q; then
-    echo; zplug install
-  fi
-fi
+# if ! zplug check --verbose; then
+#   printf "Install? [y/N]: "
+#   if read -q; then
+#     echo; zplug install
+#   fi
+# fi
 
 # Then, source plugins and add commands to $PATH
 # zplug load --verbose

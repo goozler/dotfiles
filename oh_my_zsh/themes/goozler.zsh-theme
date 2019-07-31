@@ -43,13 +43,13 @@ string='$(git_custom_status)'
 #   string=$string' $(elixir_version)'
 # fi
 
-if which node &> /dev/null; then
-  string=$string' $(node_version)'
-fi
+# if which node &> /dev/null; then
+#   string=$string' $(node_version)'
+# fi
 
-if [[ -n $DOCKER_MACHINE_NAME ]]; then
-  string=$string' $(docker_machine)'
-fi
+# if [[ -n $DOCKER_MACHINE_NAME ]]; then
+#   string=$string' $(docker_machine)'
+# fi
 
 RPS1=$string$EPS1
 # RPS1='$(git_custom_status) $(rbenv_version) $(node_version)$EPS1'
