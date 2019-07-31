@@ -18,6 +18,7 @@ Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-easy-align'
 Plug 'kshenoy/vim-signature'
 Plug 'ludovicchabant/vim-gutentags', { 'branch': 'vim7' }
+Plug 'mattn/emmet-vim'
 Plug 'mbbill/undotree', { 'on': 'UndotreeToggle' }
 Plug 'moll/vim-node'
 Plug 'sbdchd/neoformat'
@@ -66,6 +67,7 @@ Plug 'mhinz/vim-signify'
 Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries', 'for': 'go' }
 Plug 'sheerun/vim-polyglot'
 Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
+Plug 'jparise/vim-graphql'
 
 Plug 'autozimu/LanguageClient-neovim', {
     \ 'branch': 'next',
