@@ -42,7 +42,7 @@ Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
 
 " Lint
 Plug 'neomake/neomake'
-Plug 'benjie/neomake-local-eslint.vim'
+Plug 'jaawerth/nrun.vim'
 
 " Tmux
 Plug 'benmills/vimux'

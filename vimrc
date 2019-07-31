@@ -192,11 +192,17 @@ let g:neomake_pug_eslint_maker = {
 let g:neomake_elixir_enabled_makers = ['credo']
 let g:neomake_javascript_enabled_makers = ['eslint']
 let g:neomake_javascript_jsx_enabled_makers = ['eslint']
+let g:neomake_typescript_tsx_enabled_makers = ['eslint', 'tsc']
 let g:neomake_pug_enabled_makers = ['puglint', 'eslint']
 let g:neomake_error_sign = {'text': 'x'}
 let g:neomake_warning_sign = {'text': '!'}
 let g:neomake_message_sign = {'text': '>'}
 let g:neomake_info_sign = {'text': 'i'}
+
+au BufEnter *.tsx let b:neomake_typescript_tsx_eslint_exe = nrun#Which('eslint') |
+                \ let b:neomake_typescript_tsx_tsc_exe = nrun#Which('tsc')
+
+au BufEnter *.js let b:neomake_javascript_eslint_exe = nrun#Which('eslint') |
 
 function! s:ToggleNeomakeMarkers()
   if g:neomake_place_signs
@@ -272,6 +278,11 @@ let g:signify_vcs_list = ['git']
 
 " Neoformat
 nnoremap <silent> <leader>[ :Neoformat<CR>
+let g:neoformat_typescript_prettier = {
+      \ 'exe': nrun#Which('prettier'),
+      \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
+      \ 'stdin': 1
+      \ }
 
 " EasyAlign
 " Start interactive EasyAlign in visual mode (e.g. vipga)
