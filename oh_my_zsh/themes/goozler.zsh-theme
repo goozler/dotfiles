@@ -21,7 +21,7 @@ rbenv_version() {
 }
 
 elixir_version() {
-  echo "%{$fg[blue]%}[$(elixir --version | awk '/Elixir/ {print $2}')]%{$reset_color%}"
+  echo "%{\e[0;95m%}[$(elixir --version | awk '/Elixir/ {print $2}')]%{$reset_color%}"
 }
 
 node_version() {
