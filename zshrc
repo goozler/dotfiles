@@ -181,11 +181,11 @@ alias ds='docker stop'
 alias dm=docker-machine
 alias dma='docker-machine active'
 
-alias nvim='MIX_ENV=edit nvim'
+alias nvim='MIX_ENV=test nvim'
 if type nvim > /dev/null 2>&1; then
-  alias vim='MIX_ENV=edit nvim'
-  alias vi='MIX_ENV=edit nvim'
-  alias v='MIX_ENV=edit nvim'
+  alias vim='MIX_ENV=test nvim'
+  alias vi='MIX_ENV=test nvim'
+  alias v='MIX_ENV=test nvim'
 fi
 
 if [[ -z "$TMUX" ]]; then
