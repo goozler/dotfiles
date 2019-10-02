@@ -6,7 +6,14 @@ mkdir -p ~/.vim/swaps
 mkdir -p ~/.vim/undo
 mkdir -p ~/.vim/autoload
 mkdir -p ~/.vim/bundle.d
-curl --insecure -fLo ~/.vim/autoload/plug.vim https://raw.github.com/junegunn/vim-plug/master/plug.vim
+mkdir -p ~/.config/nvim
+
+if [ -f "$HOME/.config/nvim/init.vim" ]; then
+  mv -v $HOME/.config/nvim/init.vim $HOME/.config/nvim/init.vim.old
+fi
+ln -sfv $PWD/vim/init.nvim $HOME/.config/nvim/init.vim
+
+curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 
 FILES=("plugins")
 for file in "${FILES[@]}"; do
@@ -16,4 +23,4 @@ for file in "${FILES[@]}"; do
   ln -sfv $PWD/vim/bundle.d/$file.vim $HOME/.vim/bundle.d/$file.vim
 done
 
-YCM_CORES=1 vim -u $HOME/.vim/bundle.d/plugins.vim +PlugInstall +qall
+nvim -u $HOME/.vim/bundle.d/plugins.vim +PlugInstall +qall

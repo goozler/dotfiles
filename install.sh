@@ -1,7 +1,18 @@
 #!/bin/bash
 cd `dirname "$0"`
 
-FILES=("gitconfig" "gitignore_global" "rgignore" "tmux.conf" "vimrc" "zshenv" "zshrc")
+FILES=(\
+ "asdfrc"\
+ "default-gems"\
+ "default-npm-packages"\
+ "gitconfig"\
+ "gitignore_global"\
+ "rgignore"\
+ "tmux.conf"\
+ "vimrc"\
+ "zshenv"\
+ "zshrc"\
+)
 
 for file in "${FILES[@]}"; do
   if [ -f "$HOME/.$file" ]; then

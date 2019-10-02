@@ -14,7 +14,7 @@ let mapleader      = ' '
 let maplocalleader = ' '
 
 let g:python_host_prog=$HOME.'/.asdf/installs/python/2.7.16/bin/python'
-let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.7.3/bin/python'
+let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.7.4/bin/python'
 
 " Faster redrawing
 set lazyredraw
