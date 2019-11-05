@@ -29,5 +29,6 @@ tags.temp
 config/edit.exs
 /1.sql
 /1.ex
-/1.ruby
+/1.rb
+/1.json
 /.vim

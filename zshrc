@@ -57,7 +57,6 @@ plugins=(
   git
   heroku
   history
-  npm
   per-directory-history
   tmux
   z
@@ -66,14 +65,11 @@ plugins=(
 # User configuration
 export PATH="/usr/local/bin:"\
 "$GOPATH/bin:"\
-"$HOME/.rbenv/bin:"\
-"$HOME/.rbenv/shims:"\
 "/bin:"\
 "/opt/X11/bin:"\
 "/sbin:"\
 "/usr/bin:"\
 "/usr/local/bin:"\
-"/usr/local/opt/python/libexec/bin:"\
 "/usr/local/sbin:"\
 "/usr/sbin:"\
 "$HOME/bin:"\
@@ -192,16 +188,18 @@ if [[ -z "$TMUX" ]]; then
   tmux attach -t base || tmux new -s base
 fi
 
+if which direnv > /dev/null; then eval "$(direnv hook zsh)"; fi
+
 # if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
 # export NVM_DIR="$HOME/.nvm"
 # source "/usr/local/opt/nvm/nvm.sh"
 
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+# test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
-source ~/.zplug/init.zsh
-zplug "Tarrasch/zsh-autoenv"
-zplug 'zplug/zplug'
+# source ~/.zplug/init.zsh
+# zplug "Tarrasch/zsh-autoenv"
+# zplug 'zplug/zplug'
 # zplug 'zplug/zplug', hook-build:'zplug --self-manage'
 
 # Install plugins if there are plugins that have not been installed
@@ -214,4 +212,4 @@ zplug 'zplug/zplug'
 
 # Then, source plugins and add commands to $PATH
 # zplug load --verbose
-zplug load
+# zplug load

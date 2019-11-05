@@ -17,7 +17,7 @@ Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-easy-align'
 Plug 'kshenoy/vim-signature'
-Plug 'ludovicchabant/vim-gutentags', { 'branch': 'vim7' }
+" Plug 'ludovicchabant/vim-gutentags', { 'branch': 'vim7' }
 Plug 'mattn/emmet-vim'
 Plug 'mbbill/undotree', { 'on': 'UndotreeToggle' }
 Plug 'moll/vim-node'
@@ -60,7 +60,7 @@ Plug 'Yggdroot/indentLine'
 Plug 'danchoi/ri.vim'
 
 " Git
-Plug 'tpope/vim-fugitive'
+Plug 'tpope/vim-fugitive' ", { 'tag': 'v3.1' }
 Plug 'mhinz/vim-signify'
 
 " Syntax

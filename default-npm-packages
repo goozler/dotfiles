@@ -1,4 +1,5 @@
 eslint
+husky
 javascript-typescript-langserver
 neovim
 prettier

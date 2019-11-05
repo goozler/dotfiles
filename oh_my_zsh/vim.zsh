@@ -1,18 +1,18 @@
 # https://gist.github.com/pda/5417593
-vim()
-{
-  # Save current stty options.
-  local STTYOPTS="$(stty -g)"
+# vim()
+# {
+#   # Save current stty options.
+#   local STTYOPTS="$(stty -g)"
 
-  # Disable intercepting of ctrl-s and ctrl-q as flow control.
-  stty stop '' -ixoff -ixon
+#   # Disable intercepting of ctrl-s and ctrl-q as flow control.
+#   stty stop '' -ixoff -ixon
 
-  # Execute vim.
-  vim_command "$@"
+#   # Execute vim.
+#   vim_command "$@"
 
-  # Restore saved stty options.
-  stty "$STTYOPTS"
-}
+#   # Restore saved stty options.
+#   stty "$STTYOPTS"
+# }
 
 vim_command()
 {

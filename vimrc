@@ -199,10 +199,13 @@ let g:neomake_warning_sign = {'text': '!'}
 let g:neomake_message_sign = {'text': '>'}
 let g:neomake_info_sign = {'text': 'i'}
 
-au BufEnter *.tsx let b:neomake_typescript_tsx_eslint_exe = nrun#Which('eslint') |
+au BufWritePre *.tsx let b:neomake_typescript_tsx_eslint_exe = nrun#Which('eslint') |
                 \ let b:neomake_typescript_tsx_tsc_exe = nrun#Which('tsc')
 
-au BufEnter *.js let b:neomake_javascript_eslint_exe = nrun#Which('eslint') |
+au BufWritePre *.js let b:neomake_javascript_eslint_exe = nrun#Which('eslint')
+
+" if bufname('#') !~ '^fugitive:' && bufname('%') =~ '^fugitive:'
+" au BufWritePre *fugitive* :!echo 1
 
 function! s:ToggleNeomakeMarkers()
   if g:neomake_place_signs
@@ -363,10 +366,11 @@ let g:LanguageClient_hasSnippetSupport = 0
 let g:LanguageClient_windowLogMessageLevel = 'Error'
 let g:LanguageClient_serverCommands = {
   \ 'elixir': ['elixir-ls'],
-  \ 'javascript.jsx': ['javascript-typescript-stdio'],
   \ 'javascript': ['javascript-typescript-stdio'],
-  \ 'typescript.tsx': ['javascript-typescript-stdio'],
-  \ 'typescript': ['javascript-typescript-stdio']
+  \ 'javascript.jsx': ['javascript-typescript-stdio'],
+  \ 'ruby': ['solargraph', 'stdio'],
+  \ 'typescript': ['javascript-typescript-stdio'],
+  \ 'typescript.tsx': ['javascript-typescript-stdio']
 \ }
 nnoremap <F5> :call LanguageClient_contextMenu()<CR>
 nnoremap <silent> K :call LanguageClient#textDocument_hover()<CR>

@@ -5,6 +5,7 @@ FILES=(\
  "asdfrc"\
  "default-gems"\
  "default-npm-packages"\
+ "default-python-packages"\
  "gitconfig"\
  "gitignore_global"\
  "rgignore"\

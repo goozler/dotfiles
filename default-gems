@@ -2,3 +2,4 @@ bundler
 gem-ctags
 neovim
 pry
+solargraph

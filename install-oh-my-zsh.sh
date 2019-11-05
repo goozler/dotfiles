@@ -32,6 +32,6 @@ if [ -f "$HOME/.zshrc" ]; then
 fi
 ln -sfv $PWD/zshrc $HOME/.zshrc
 
-export ZPLUG_HOME=$HOME/.zplug
-git clone https://github.com/zplug/zplug $ZPLUG_HOME
-zsh -c 'source ~/.zplug/init.zsh; zplug check || zplug install'
+# export ZPLUG_HOME=$HOME/.zplug
+# git clone https://github.com/zplug/zplug $ZPLUG_HOME
+# zsh -c 'source ~/.zplug/init.zsh; zplug check || zplug install'
