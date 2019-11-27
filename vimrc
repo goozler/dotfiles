@@ -13,8 +13,8 @@ source ~/.vim/bundle.d/plugins.vim
 let mapleader      = ' '
 let maplocalleader = ' '
 
-let g:python_host_prog=$HOME.'/.asdf/installs/python/2.7.16/bin/python'
-let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.7.4/bin/python'
+let g:python_host_prog=$HOME.'/.asdf/installs/python/2.7.17/bin/python'
+let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.8.0/bin/python'
 
 " Faster redrawing
 set lazyredraw
@@ -286,6 +286,12 @@ let g:neoformat_typescript_prettier = {
       \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
       \ 'stdin': 1
       \ }
+let g:neoformat_typescriptreact_prettier = {
+      \ 'exe': nrun#Which('prettier'),
+      \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
+      \ 'stdin': 1
+      \ }
+let g:neoformat_enabled_typescriptreact = ['prettier']
 
 " EasyAlign
 " Start interactive EasyAlign in visual mode (e.g. vipga)
@@ -365,11 +371,12 @@ let g:LanguageClient_diagnosticsEnable = 0
 let g:LanguageClient_hasSnippetSupport = 0
 let g:LanguageClient_windowLogMessageLevel = 'Error'
 let g:LanguageClient_serverCommands = {
-  \ 'elixir': ['elixir-ls'],
+  \ 'elixir': ['elixir-ls-otp-22'],
   \ 'javascript': ['javascript-typescript-stdio'],
   \ 'javascript.jsx': ['javascript-typescript-stdio'],
   \ 'ruby': ['solargraph', 'stdio'],
   \ 'typescript': ['javascript-typescript-stdio'],
+  \ 'typescriptreact': ['javascript-typescript-stdio'],
   \ 'typescript.tsx': ['javascript-typescript-stdio']
 \ }
 nnoremap <F5> :call LanguageClient_contextMenu()<CR>
@@ -432,3 +439,10 @@ nnoremap <silent> <F8> :call VimuxRunCommand('clear;make;./'.expand('%:r'))<CR>
 " Remap ctrl-p ctrl-n
 inoremap <C-j> <C-n>
 inoremap <C-k> <C-p>
+
+" Remap increasing number due to tmux mappings
+nnoremap <C-s> <C-a>
+
+" crazy macros for sorting node imports
+nnoremap <leader>pi vip:sort /.* /<CR>
+nmap <leader>pp ^f{cSBBj0dw$r,viB:s/, /,\r/<CR>viB:sort<CR>viBvxviB:s/,\n/, /<CR>kJJ
