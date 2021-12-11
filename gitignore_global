@@ -27,8 +27,10 @@ tags.temp
 .stuff
 *.log
 config/edit.exs
+/.elixir_ls/
 /1.sql
 /1.ex
 /1.rb
 /1.json
 /.vim
+/sandbox

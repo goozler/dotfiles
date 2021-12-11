@@ -154,6 +154,7 @@ alias be='bundle exec'
 alias gups='gsta && gup && gstp'
 alias gs='gst'
 alias gsta='git stash push -u'
+alias glold='git log --graph --pretty='\''%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ad) %C(bold blue)<%an>%Creset'\'' --date=short'
 alias glola='git log --graph --pretty='\''%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ad) %C(bold blue)<%an>%Creset'\'' --all --date=short'
 alias rdpristine="rdd && rdc && rdm"
 alias j=z
@@ -213,3 +214,6 @@ if which direnv > /dev/null; then eval "$(direnv hook zsh)"; fi
 # Then, source plugins and add commands to $PATH
 # zplug load --verbose
 # zplug load
+
+autoload -U +X bashcompinit && bashcompinit
+complete -o nospace -C /usr/local/bin/vault vault

@@ -13,8 +13,8 @@ source ~/.vim/bundle.d/plugins.vim
 let mapleader      = ' '
 let maplocalleader = ' '
 
-let g:python_host_prog=$HOME.'/.asdf/installs/python/2.7.17/bin/python'
-let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.8.0/bin/python'
+let g:python_host_prog=$HOME.'/.asdf/installs/python/2.7.18/bin/python'
+let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.9.4/bin/python'
 
 " Faster redrawing
 set lazyredraw
@@ -141,8 +141,8 @@ set backupskip=/tmp/*,/private/tmp/*
 if !has('nvim')
   set laststatus=2 " Always show status line
 endif
-let g:airline_powerline_fonts = 0
-let g:airline#extensions#tabline#enabled = 1
+" let g:airline_powerline_fonts = 0
+" let g:airline#extensions#tabline#enabled = 1
 
 " Apply a macros to a visual selection
 " https://github.com/stoeffel/.dotfiles/blob/master/vim/visual-at.vim
@@ -193,6 +193,7 @@ let g:neomake_elixir_enabled_makers = ['credo']
 let g:neomake_javascript_enabled_makers = ['eslint']
 let g:neomake_javascript_jsx_enabled_makers = ['eslint']
 let g:neomake_typescript_tsx_enabled_makers = ['eslint', 'tsc']
+let g:neomake_typescriptreact_enabled_makers = ['eslint', 'tsc']
 let g:neomake_pug_enabled_makers = ['puglint', 'eslint']
 let g:neomake_error_sign = {'text': 'x'}
 let g:neomake_warning_sign = {'text': '!'}
@@ -200,12 +201,15 @@ let g:neomake_message_sign = {'text': '>'}
 let g:neomake_info_sign = {'text': 'i'}
 
 au BufWritePre *.tsx let b:neomake_typescript_tsx_eslint_exe = nrun#Which('eslint') |
-                \ let b:neomake_typescript_tsx_tsc_exe = nrun#Which('tsc')
+                \ let b:neomake_typescript_tsx_tsc_exe = nrun#Which('tsc') |
+                \ let b:neomake_typescriptreact_eslint_exe = nrun#Which('eslint') |
+                \ let b:neomake_typescriptreact_tsc_exe = nrun#Which('tsc')
 
 au BufWritePre *.js let b:neomake_javascript_eslint_exe = nrun#Which('eslint')
 
 " if bufname('#') !~ '^fugitive:' && bufname('%') =~ '^fugitive:'
 " au BufWritePre *fugitive* :!echo 1
+autocmd BufReadPost fugitive://* set bufhidden=delete
 
 function! s:ToggleNeomakeMarkers()
   if g:neomake_place_signs
@@ -229,7 +233,7 @@ nnoremap <Leader>; :IndentLinesToggle<CR>
 let g:go_list_type = 'quickfix'
 
 " Polyglot
-let g:polyglot_disabled = ['go'] " https://github.com/fatih/vim-go/issues/2045
+" let g:polyglot_disabled = ['go'] " https://github.com/fatih/vim-go/issues/2045
 
 " EasyMotion
 map  / <Plug>(easymotion-sn)
@@ -240,7 +244,7 @@ let g:EasyGrepFilesToExclude='.git,tags'
 let g:EasyGrepCommand='ag'
 
 " Fugitive
-nmap <silent> <leader>g :Gstatus<cr>gg<c-n>
+nmap <silent> <leader>g :Git<cr>gg<c-n>
 nmap <leader>d :Gdiff<cr>
 
 " Vim-commentary
@@ -281,6 +285,7 @@ let g:signify_vcs_list = ['git']
 
 " Neoformat
 nnoremap <silent> <leader>[ :Neoformat<CR>
+vnoremap <silent> <leader>[ :Neoformat<CR>
 let g:neoformat_typescript_prettier = {
       \ 'exe': nrun#Which('prettier'),
       \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
@@ -350,7 +355,10 @@ let g:smartpairs_revert_key = '<C-n>'
 
 " Deoplete
 let g:deoplete#enable_at_startup = 1
-let g:deoplete#ignore_sources = {'_': ['LanguageClient']}
+" let g:deoplete#ignore_sources = {'_': ['LanguageClient']}
+call deoplete#custom#option('deoplete#ignore_sources', {
+  \ '_': ['LanguageClient'],
+\})
 set completeopt-=preview
 
 " Snippets
@@ -371,7 +379,7 @@ let g:LanguageClient_diagnosticsEnable = 0
 let g:LanguageClient_hasSnippetSupport = 0
 let g:LanguageClient_windowLogMessageLevel = 'Error'
 let g:LanguageClient_serverCommands = {
-  \ 'elixir': ['elixir-ls-otp-22'],
+  \ 'elixir': ['elixir-ls-otp-23'],
   \ 'javascript': ['javascript-typescript-stdio'],
   \ 'javascript.jsx': ['javascript-typescript-stdio'],
   \ 'ruby': ['solargraph', 'stdio'],

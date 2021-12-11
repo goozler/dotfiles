@@ -6,8 +6,8 @@ Plug 'Raimondi/delimitMate'
 Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
 Plug 'ap/vim-css-color'
 Plug 'bronson/vim-trailing-whitespace'
-Plug 'cakebaker/scss-syntax.vim', { 'for': ['sass', 'scss'] }
-Plug 'dkprice/vim-easygrep'
+" Plug 'cakebaker/scss-syntax.vim', { 'for': ['sass', 'scss'] }
+" Plug 'dkprice/vim-easygrep'
 Plug 'easymotion/vim-easymotion'
 Plug 'gorkunov/smartpairs.vim'
 Plug 'janko-m/vim-test'
@@ -25,13 +25,13 @@ Plug 'sbdchd/neoformat'
 Plug 'sgur/vim-editorconfig'
 Plug 'szw/vim-maximizer'
 Plug 'thinca/vim-localrc'
-Plug 'tpope/vim-bundler'
+" Plug 'tpope/vim-bundler'
 Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-cucumber'
 Plug 'tpope/vim-endwise'
 Plug 'tpope/vim-eunuch'
 Plug 'tpope/vim-obsession'
-Plug 'tpope/vim-rails'
+" Plug 'tpope/vim-rails'
 Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-rhubarb'
 Plug 'tpope/vim-surround'
@@ -52,21 +52,20 @@ Plug 'tmux-plugins/vim-tmux-focus-events'
 " UI
 Plug 'lifepillar/vim-solarized8'
 Plug 'scrooloose/nerdtree', { 'on': ['NERDTreeToggle', 'NERDTreeFind'] }
-Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
 Plug 'wesQ3/vim-windowswap'
 Plug 'Yggdroot/indentLine'
 
 " Documentation
-Plug 'danchoi/ri.vim'
+" Plug 'danchoi/ri.vim'
 
 " Git
 Plug 'tpope/vim-fugitive' ", { 'tag': 'v3.1' }
 Plug 'mhinz/vim-signify'
 
 " Syntax
-Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries', 'for': 'go' }
+" Plug 'fatih/vim-go' ", { 'do': ':GoUpdateBinaries', 'for': 'go' }
 Plug 'sheerun/vim-polyglot'
-Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
+" Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
 Plug 'jparise/vim-graphql'
 
 Plug 'autozimu/LanguageClient-neovim', {
