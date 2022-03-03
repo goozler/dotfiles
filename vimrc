@@ -267,6 +267,9 @@ let g:splitjoin_join_mapping = ''
 nnoremap gss :SplitjoinSplit<cr>
 nnoremap gsj :SplitjoinJoin<cr>
 
+" NVim-colorized
+lua require'colorizer'.setup()
+
 " Vim-test
 nmap <leader>tr <Plug>SetTmuxVars
 let test#strategy = "vimux"

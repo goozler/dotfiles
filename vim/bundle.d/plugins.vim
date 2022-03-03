@@ -4,7 +4,7 @@ Plug 'AndrewRadev/splitjoin.vim'
 Plug 'DataWraith/auto_mkdir'
 Plug 'Raimondi/delimitMate'
 Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
-Plug 'ap/vim-css-color'
+Plug 'norcalli/nvim-colorizer.lua'
 Plug 'bronson/vim-trailing-whitespace'
 " Plug 'cakebaker/scss-syntax.vim', { 'for': ['sass', 'scss'] }
 " Plug 'dkprice/vim-easygrep'
