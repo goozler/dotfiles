@@ -1,0 +1,7 @@
+ruby 2.6.5
+python 3.9.4 2.7.18
+nodejs 12.18.1
+elixir 1.13.1-otp-23
+erlang 23.3.4.5
+golang 1.15.6
+vault 1.9.3
