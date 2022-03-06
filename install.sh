@@ -10,6 +10,7 @@ FILES=(\
  "gitignore_global"\
  "rgignore"\
  "tmux.conf"\
+ "tool-versions"\
  "vimrc"\
  "zshenv"\
  "zshrc"\
