@@ -4,6 +4,7 @@ Plug 'AndrewRadev/splitjoin.vim'
 Plug 'DataWraith/auto_mkdir'
 Plug 'Raimondi/delimitMate'
 Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
+Plug 'deoplete-plugins/deoplete-lsp'
 Plug 'norcalli/nvim-colorizer.lua'
 Plug 'bronson/vim-trailing-whitespace'
 " Plug 'cakebaker/scss-syntax.vim', { 'for': ['sass', 'scss'] }
@@ -68,8 +69,5 @@ Plug 'sheerun/vim-polyglot'
 " Plug 'kchmck/vim-coffee-script', { 'for': ['coffee', 'eco'] } | Plug 'AndrewRadev/vim-eco', { 'for': 'eco' }
 Plug 'jparise/vim-graphql'
 
-Plug 'autozimu/LanguageClient-neovim', {
-    \ 'branch': 'next',
-    \ 'do': 'bash install.sh',
-    \ }
+Plug 'neovim/nvim-lspconfig'
 call plug#end()
