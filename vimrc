@@ -358,10 +358,6 @@ let g:smartpairs_revert_key = '<C-n>'
 
 " Deoplete
 let g:deoplete#enable_at_startup = 1
-" let g:deoplete#ignore_sources = {'_': ['LanguageClient']}
-call deoplete#custom#option('deoplete#ignore_sources', {
-  \ '_': ['LanguageClient'],
-\})
 set completeopt-=preview
 
 " Snippets
@@ -373,29 +369,51 @@ let g:UltiSnipsSnippetDirectories=['UltiSnips', $HOME.'/dotfiles/vim/UltiSnips']
 
 " LanguageServer
 " Required for operations modifying multiple buffers like rename.
-set hidden
+" set hidden
+lua << EOF
+  vim.lsp.set_log_level("debug")
+  local opts = { noremap=true, silent=true }
+  local custom_lsp_attach = function(client, bufnr)
+    -- See `:help nvim_buf_set_keymap()` for more information
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', '<space>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
 
-" let g:LanguageClient_loggingLevel = 'DEBUG'
-" let g:LanguageClient_serverStderr = '/Users/goozler/ls-errors.log'
-" let g:LanguageClient_loggingFile = '/Users/goozler/ls.log'
-let g:LanguageClient_diagnosticsEnable = 0
-let g:LanguageClient_hasSnippetSupport = 0
-let g:LanguageClient_windowLogMessageLevel = 'Error'
-let g:LanguageClient_serverCommands = {
-  \ 'elixir': ['elixir-ls-otp-23'],
-  \ 'javascript': ['javascript-typescript-stdio'],
-  \ 'javascript.jsx': ['javascript-typescript-stdio'],
-  \ 'ruby': ['solargraph', 'stdio'],
-  \ 'typescript': ['javascript-typescript-stdio'],
-  \ 'typescriptreact': ['javascript-typescript-stdio'],
-  \ 'typescript.tsx': ['javascript-typescript-stdio']
-\ }
-nnoremap <F5> :call LanguageClient_contextMenu()<CR>
-nnoremap <silent> K :call LanguageClient#textDocument_hover()<CR>
-nnoremap <silent> gd :call LanguageClient#textDocument_definition()<CR>
-nnoremap <silent> <F2> :call LanguageClient#textDocument_rename()<CR>
-nnoremap <silent> <leader>kc :call LanguageClient#textDocument_references()<CR>
-nnoremap <silent> <leader>ks :call LanguageClient#textDocument_documentSymbol()<CR>
+    -- Use LSP as the handler for omnifunc.
+    --    See `:help omnifunc` and `:help ins-completion` for more information.
+    vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+
+    -- Use LSP as the handler for formatexpr.
+    --    See `:help formatexpr` for more information.
+    vim.api.nvim_buf_set_option(bufnr, 'formatexpr', 'v:lua.vim.lsp.formatexpr()')
+  end
+
+  -- Use a loop to conveniently call 'setup' on multiple servers and
+  -- map buffer local keybindings when the language server attaches
+  require'lspconfig'.elixirls.setup{
+    on_attach = custom_lsp_attach,
+    flags = {
+      debounce_text_changes = 150,
+    },
+    cmd = { os.getenv("HOME") .. "/projects/github/elixir-ls/release/otp23/language_server.sh" },
+    settings = {
+      elixirLS = {dialyzerEnabled = false}
+    }
+  }
+  local servers = { 'tsserver' }
+  for _, lsp in pairs(servers) do
+    require('lspconfig')[lsp].setup {
+      on_attach = custom_lsp_attach,
+      flags = {
+        -- This will be the default in neovim 0.7+
+        debounce_text_changes = 150,
+      }
+    }
+  end
+EOF
 
 " ======================================
 " CUSTOM MAPPINGS
