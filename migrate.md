@@ -7,12 +7,18 @@
 * ssh key
 
   `zip -v -r migrate/ssh .ssh/`
+* bin folder
+
+  `zip -v -r migrate/bin bin/`
 * directory zsh history
 
   `zip -v -r migrate/directory_history .directory_history/ -x '*DS_Store'`
 * nvim history
 
   `zip migrate/nvim_history .local/share/nvim/shada/main.shada`
+* kube configs
+
+  `zip -v -r migrate/kube .kube -x '*/cache/*'`
 * iStat menus settings
 * Little Snitch settings
 * iTerm2 setting (General -> Preferences -> Load from Documents and choose to save a local copy)
