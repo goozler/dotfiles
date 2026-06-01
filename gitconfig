@@ -2,15 +2,26 @@
 [user]
 # Please adapt and uncomment the following lines:
 	name = Krutov Alexander
-	email = goozler@mail.ru
+	email = alex.krutov@creative.co
+	signingkey = 55EF1B2F3437F4E7
 [push]
 	default = simple
 [alias]
 	cleanup = "!git branch --merged | grep -v '\\*' | grep -v master | grep -v dev | xargs -n 1 git branch -d"
+	parent = "!git log --decorate --simplify-by-decoration --oneline --pretty=format:"%h" | sed -n '2p'"
 [core]
 	excludesfile = ~/.gitignore_global
+	pager = delta
 [merge]
-	tool = vimdiff
+#	tool = vimdiff
 	conflictstyle = diff3
 [mergetool]
 	prompt = false
+[stash]
+	showIncludeUntracked = true
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+[diff]
+	colorMoved = default

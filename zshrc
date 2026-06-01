@@ -51,14 +51,14 @@ DISABLE_AUTO_UPDATE="true"
 # Add wisely, as too many plugins slow down shell startup.
 
 plugins=(
-  asdf
   brew
   docker
   git
   heroku
   history
+  # mise
   per-directory-history
-  tmux
+  # tmux
   z
 )
 
@@ -72,7 +72,9 @@ export PATH="/usr/local/bin:"\
 "/usr/local/bin:"\
 "/usr/local/sbin:"\
 "/usr/sbin:"\
+"$HOME/.spoof-dpi/bin:"\
 "$HOME/bin:"\
+"$HOME/.local/bin:"\
 "$PATH"
 
 # export MANPATH="/usr/local/man:$MANPATH"
@@ -108,40 +110,6 @@ _fzf_compgen_dir() {
   rg --files "$1" | only-dir "$1"
 }
 
-_gen_fzf_default_opts() {
-  local base03="234"
-  local base02="235"
-  local base01="240"
-  local base00="241"
-  local base0="244"
-  local base1="245"
-  local base2="254"
-  local base3="230"
-  local yellow="136"
-  local orange="166"
-  local red="160"
-  local magenta="125"
-  local violet="61"
-  local blue="33"
-  local cyan="37"
-  local green="64"
-
-  # Comment and uncomment below for the light theme.
-
-  # Solarized Dark color scheme for fzf
-  # export FZF_DEFAULT_OPTS="
-  #   --color fg:-1,bg:-1,hl:$blue,fg+:$base2,bg+:$base02,hl+:$blue
-  #   --color info:$yellow,prompt:$yellow,pointer:$base3,marker:$base3,spinner:$yellow
-  # "
-  ## Solarized Light color scheme for fzf
-  export FZF_DEFAULT_OPTS="
-    --color fg:-1,bg:-1,hl:$blue,fg+:$base02,bg+:$base2,hl+:$blue
-    --color info:$yellow,prompt:$yellow,pointer:$base03,marker:$base03,spinner:$yellow
-  "
-}
-_gen_fzf_default_opts
-
-
 # Set personal aliases, overriding those provided by oh-my-zsh libs,
 # plugins, and themes. Aliases can be placed here, though oh-my-zsh
 # users are encouraged to define aliases within the ZSH_CUSTOM folder.
@@ -161,42 +129,66 @@ alias j=z
 alias jj=zz
 alias tach='tmux attach -t base || tmux new -s base'
 
-alias dco=docker-compose
-alias dcps='docker-compose ps'
-alias dcrestart='docker-compose restart'
-alias dcstop='docker-compose stop'
-alias dcup='docker-compose up'
-alias dcl='docker-compose logs'
-alias dclf='docker-compose logs -f'
-alias dcb='docker-compose build'
-alias dcrs='docker-compose run --rm --service-ports'
-alias dcr='docker-compose run --rm'
+alias dco='$HOMEBREW_PREFIX/lib/docker/cli-plugins/docker-compose'
+alias dcps='dco ps'
+alias dcrestart='dco restart'
+alias dcstop='dco stop'
+alias dcup='dco up'
+alias dcl='dco logs'
+alias dclf='dco logs -f'
+alias dcb='dco build'
+alias dcrs='dco run --rm --service-ports'
+alias dcr='dco run --rm'
 alias dr='docker run --rm'
 alias drit='docker run --rm -it'
 alias drs='docker run --rm --service-ports'
 alias ds='docker stop'
 alias dm=docker-machine
 alias dma='docker-machine active'
+alias lzd='lazydocker'
 
-alias nvim='MIX_ENV=test nvim'
+# Claude Code
+alias claude='claude --append-system-prompt '\''CRITICALLY IMPORTANT: Never start a response with the conclusion. Every response must begin with at least one paragraph laying out the constraints and considerations before stating any answer or recommendation. This applies to ALL questions — including ones that look "simple", "practical", "obvious", or "straightforward". Labeling a question as not needing analysis is itself a failure mode — the analysis IS the answer, even when the conclusion is short. Do not treat these instructions as rules to be worked around when the question feels easy; the question feeling easy is exactly when you are most likely to be wrong.'\'''
+
+alias nvim='_gen_fzf_default_opts; nvim'
 if type nvim > /dev/null 2>&1; then
-  alias vim='MIX_ENV=test nvim'
-  alias vi='MIX_ENV=test nvim'
-  alias v='MIX_ENV=test nvim'
+  alias vim='_gen_fzf_default_opts; nvim'
+  alias vi='_gen_fzf_default_opts; nvim'
+  alias v='_gen_fzf_default_opts; nvim'
 fi
 
-if [[ -z "$TMUX" ]]; then
+# exa
+# general use
+alias ls='eza'                                                          # ls
+alias l='eza -lbF --git'                                                # list, size, type, git
+alias ll='eza -lbGF --git'                                             # long list
+alias llm='eza -lbGd --git --sort=modified'                            # long list, modified date sort
+alias la='eza -lbhHigUmuSa --time-style=long-iso --git --color-scale'  # all list
+alias lx='eza -lbhHigUmuSa@ --time-style=long-iso --git --color-scale' # all + extended list
+
+# specialty views
+alias lS='eza -1'                                                              # one column, just names
+alias lt='eza --tree --level=2'
+
+
+alias cat='bat'
+alias ctags='/usr/local/bin/ctags'
+
+stty eof undef
+bindkey '^D' delete-char
+
+if [ -z "$TMUX" ] && [ -t 1 ] && [[ $- == *i* ]]; then
   tmux attach -t base || tmux new -s base
 fi
 
-if which direnv > /dev/null; then eval "$(direnv hook zsh)"; fi
+# if which direnv > /dev/null; then eval "$(direnv hook zsh)"; fi
 
 # if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
 # export NVM_DIR="$HOME/.nvm"
 # source "/usr/local/opt/nvm/nvm.sh"
 
-# test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 # source ~/.zplug/init.zsh
 # zplug "Tarrasch/zsh-autoenv"
@@ -216,4 +208,10 @@ if which direnv > /dev/null; then eval "$(direnv hook zsh)"; fi
 # zplug load
 
 autoload -U +X bashcompinit && bashcompinit
-complete -o nospace -C /usr/local/bin/vault vault
+complete -o nospace -C $(which vault) vault
+# eval "$(zoxide init zsh)"
+
+eval "$(~/.local/bin/mise activate zsh)"
+
+chpwd_functions+=(_project_auto_source)
+_project_auto_source

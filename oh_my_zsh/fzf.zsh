@@ -23,19 +23,19 @@ fo() {
   fi
 }
 
-# fd - cd to selected directory
-fd() {
-  local dir
-  dir=$(find ${1:-.} -path '*/\.*' -prune \
-                  -o -type d -print 2> /dev/null | fzf +m) &&
-  cd "$dir"
-}
+# # fd - cd to selected directory
+# fd() {
+#   local dir
+#   dir=$(find ${1:-.} -path '*/\.*' -prune \
+#                   -o -type d -print 2> /dev/null | fzf +m) &&
+#   cd "$dir"
+# }
 
-# fda - including hidden directories
-fda() {
-  local dir
-  dir=$(find ${1:-.} -type d 2> /dev/null | fzf +m) && cd "$dir"
-}
+# # fda - including hidden directories
+# fda() {
+#   local dir
+#   dir=$(find ${1:-.} -type d 2> /dev/null | fzf +m) && cd "$dir"
+# }
 
 # =======================
 # Git
@@ -99,15 +99,15 @@ fcs() {
 unalias z
 z() {
   if [[ -z "$*" ]]; then
-    cd "$(_z -l 2>&1 | fzf +s --tac | sed 's/^[0-9,.]* *//')"
+    cd "$(zshz -l 2>&1 | fzf +s --tac | sed 's/^[0-9,.]* *//')"
   else
     _last_z_args="$@"
-    _z "$@"
+    zshz "$@"
   fi
 }
 
 zz() {
-  cd "$(_z -l 2>&1 | sed 's/^[0-9,.]* *//' | fzf -q "$_last_z_args")"
+  cd "$(zshz -l 2>&1 | sed 's/^[0-9,.]* *//' | fzf -q "$_last_z_args")"
 }
 
 # =======================

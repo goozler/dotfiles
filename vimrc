@@ -13,8 +13,9 @@ source ~/.vim/bundle.d/plugins.vim
 let mapleader      = ' '
 let maplocalleader = ' '
 
-let g:python_host_prog=$HOME.'/.asdf/installs/python/2.7.18/bin/python'
-let g:python3_host_prog=$HOME.'/.asdf/installs/python/3.9.4/bin/python'
+
+" let g:python_host_prog=$HOME.'/.local/share/mise/installs/python/3.13.2/bin/python'
+let g:python3_host_prog=$HOME.'/.local/share/mise/installs/python/3.13.2/bin/python'
 
 " Faster redrawing
 set lazyredraw
@@ -28,7 +29,7 @@ set list
 set nojs " insert only one space after . ? ! with a join command
 set nosol " keep the cursor in the same column when jump in file
 set nu " enable line numbers
-set pastetoggle=<F9>
+" set pastetoggle=<F9>
 set scrolloff=7 " minimal lines around the cursor
 set shortmess=aIT " short messages
 set synmaxcol=250
@@ -106,9 +107,12 @@ endif
 
 " FOLDING
 set foldenable          " dont fold by default
-set foldmethod=indent   " fold based on spaces
 set foldlevelstart=10   " open most folds by default
 set foldnestmax=10      " 10 nested fold max
+set foldmethod=indent   " fold based on spaces
+" set foldmethod=expr
+" set foldexpr=nvim_treesitter#foldexpr()
+" set nofoldenable                     " Disable folding at startup.
 
 " INDENTATION/TABS
 set tabstop=2     " read as
@@ -164,8 +168,15 @@ autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "norm
 " ======================================
 " COLOR SCHEME
 " ======================================
-set background=light
-colorscheme solarized8
+let iterm_profile = $ITERM_PROFILE
+
+if iterm_profile == "dark"
+  set background=dark
+else
+  set background=light " set solarized background color
+endif
+
+autocmd vimenter * ++nested colorscheme solarized8_flat
 
 " ======================================
 " PLUGIN SETTINGS AND MAPPINGS
@@ -179,7 +190,7 @@ map <Leader>n :NERDTreeToggle<cr>
 map <Leader>m :NERDTreeFind<cr>
 
 " Neomake
-autocmd! BufWritePost * Neomake
+" autocmd! BufWritePost * Neomake
 " autocmd InsertLeave,TextChanged * silent! update | Neomake " fun but overhead
 
 let g:neomake_pug_eslint_maker = {
@@ -195,10 +206,13 @@ let g:neomake_javascript_jsx_enabled_makers = ['eslint']
 let g:neomake_typescript_tsx_enabled_makers = ['eslint', 'tsc']
 let g:neomake_typescriptreact_enabled_makers = ['eslint', 'tsc']
 let g:neomake_pug_enabled_makers = ['puglint', 'eslint']
+let g:neomake_ruby_enabled_makers = ['mri', 'rubocop']
 let g:neomake_error_sign = {'text': 'x'}
 let g:neomake_warning_sign = {'text': '!'}
 let g:neomake_message_sign = {'text': '>'}
 let g:neomake_info_sign = {'text': 'i'}
+
+au BufWritePre *.rb let b:neomake_ruby_rubocop_exe = 'bundle exec rubocop'
 
 au BufWritePre *.tsx let b:neomake_typescript_tsx_eslint_exe = nrun#Which('eslint') |
                 \ let b:neomake_typescript_tsx_tsc_exe = nrun#Which('tsc') |
@@ -210,6 +224,8 @@ au BufWritePre *.js let b:neomake_javascript_eslint_exe = nrun#Which('eslint')
 " if bufname('#') !~ '^fugitive:' && bufname('%') =~ '^fugitive:'
 " au BufWritePre *fugitive* :!echo 1
 autocmd BufReadPost fugitive://* set bufhidden=delete
+
+let g:EditorConfig_exclude_patterns = ['fugitive://.*']
 
 function! s:ToggleNeomakeMarkers()
   if g:neomake_place_signs
@@ -224,7 +240,25 @@ function! s:ToggleNeomakeMarkers()
   endif
 endfunction
 
-nnoremap <silent> <Leader>' :call <SID>ToggleNeomakeMarkers()<CR>
+lua << EOF
+vim.api.nvim_create_user_command(
+  "DiagnosticToggle",
+  function()
+    local config = vim.diagnostic.config
+    local vt = config().virtual_text
+    config {
+      virtual_lines = not vt,
+      virtual_text = not vt,
+      underline = not vt,
+      signs = not vt,
+    }
+  end,
+  { desc = "toggle diagnostic" }
+)
+vim.keymap.set("n", "<leader>'", ":DiagnosticToggle<CR>", {})
+EOF
+
+" nnoremap <silent> <Leader>' :call <SID>ToggleNeomakeMarkers()<CR>
 
 " IndentLines
 nnoremap <Leader>; :IndentLinesToggle<CR>
@@ -273,9 +307,11 @@ lua require'colorizer'.setup()
 " Vim-test
 nmap <leader>tr <Plug>SetTmuxVars
 let test#strategy = "vimux"
+let test#ruby#rspec#executable = 'be rspec'
 nmap <silent> <leader>t :TestNearest<CR>
 nmap <silent> <leader>T :TestFile<CR>
 nmap <silent> <leader>l :TestLast<CR>
+nmap <silent> <leader>L :TestVisit<CR>
 
 " Buffergator
 let g:buffergator_suppress_keymaps = 1
@@ -289,17 +325,25 @@ let g:signify_vcs_list = ['git']
 " Neoformat
 nnoremap <silent> <leader>[ :Neoformat<CR>
 vnoremap <silent> <leader>[ :Neoformat<CR>
-let g:neoformat_typescript_prettier = {
-      \ 'exe': nrun#Which('prettier'),
-      \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
-      \ 'stdin': 1
-      \ }
-let g:neoformat_typescriptreact_prettier = {
-      \ 'exe': nrun#Which('prettier'),
-      \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
-      \ 'stdin': 1
-      \ }
+" let g:neoformat_typescript_prettier = {
+"       \ 'exe': nrun#Which('prettier'),
+"       \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
+"       \ 'stdin': 1
+"       \ }
+" let g:neoformat_typescriptreact_prettier = {
+"       \ 'exe': nrun#Which('prettier'),
+"       \ 'args': ['--stdin', '--stdin-filepath', '"%:p"', '--parser', 'typescript'],
+"       \ 'stdin': 1
+"       \ }
+" let g:neoformat_sql_sqlfmt = {
+"       \ 'exe': 'sqlfmt',
+"       \ 'args': ['--use-spaces', '--len 120', '--tab-width 2', '--align true'],
+"       \ 'stdin': 1
+"       \ }
 let g:neoformat_enabled_typescriptreact = ['prettier']
+let g:neoformat_enabled_ruby = ['rubocop']
+let g:neoformat_basic_format_retab = 1
+let g:neoformat_try_node_exe = 1
 
 " EasyAlign
 " Start interactive EasyAlign in visual mode (e.g. vipga)
@@ -308,13 +352,20 @@ xmap ga <Plug>(EasyAlign)
 nmap ga <Plug>(EasyAlign)
 
 " Fzf
-let g:fzf_action = {
-  \ 'ctrl-t': 'tab split',
-  \ 'ctrl-x': 'split',
-  \ 'ctrl-s': 'vsplit' }
+" let g:fzf_action = {
+"   \ 'ctrl-t': 'tab split',
+"   \ 'ctrl-x': 'split',
+"   \ 'ctrl-s': 'vsplit' }
 
 command! -bang -nargs=? -complete=dir Files
   \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
+
+" command! -bang -nargs=* Rg
+"   \ call fzf#vim#grep(
+"   \   'rg --column --line-number --no-heading --color=always --smart-case '.shellescape(<q-args>), 1,
+"   \   <bang>0 ? fzf#vim#with_preview({'options': '--delimiter : --nth 4..'}, 'up:60%')
+"   \           : fzf#vim#with_preview({'options': '--delimiter : --nth 4..'}, 'right:50%:hidden', '?'),
+"   \   <bang>0)
 
 command! -bang -nargs=* Rg
   \ call fzf#vim#grep(
@@ -371,7 +422,7 @@ let g:UltiSnipsSnippetDirectories=['UltiSnips', $HOME.'/dotfiles/vim/UltiSnips']
 " Required for operations modifying multiple buffers like rename.
 " set hidden
 lua << EOF
-  vim.lsp.set_log_level("debug")
+  -- vim.lsp.set_log_level("debug")
   local opts = { noremap=true, silent=true }
   local custom_lsp_attach = function(client, bufnr)
     -- See `:help nvim_buf_set_keymap()` for more information
@@ -380,6 +431,11 @@ lua << EOF
     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', opts)
     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gy', '<cmd>lua vim.lsp.buf.incoming_calls()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gY', '<cmd>lua vim.lsp.buf.outgoing_calls()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gs', '<cmd>lua vim.lsp.buf.document_symbol()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gS', '<cmd>lua vim.lsp.buf.document_highlight()<CR>', opts)
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gl', '<cmd>lua vim.diagnostic.setqflist()<CR>', opts)
     vim.api.nvim_buf_set_keymap(bufnr, 'n', '<space>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
 
     -- Use LSP as the handler for omnifunc.
@@ -389,31 +445,208 @@ lua << EOF
     -- Use LSP as the handler for formatexpr.
     --    See `:help formatexpr` for more information.
     vim.api.nvim_buf_set_option(bufnr, 'formatexpr', 'v:lua.vim.lsp.formatexpr()')
+
+    vim.api.nvim_buf_set_option(bufnr, 'tagfunc', 'v:lua.vim.lsp.tagfunc()')
   end
 
-  -- Use a loop to conveniently call 'setup' on multiple servers and
-  -- map buffer local keybindings when the language server attaches
-  require'lspconfig'.elixirls.setup{
+  vim.lsp.config('*', {
     on_attach = custom_lsp_attach,
-    flags = {
-      debounce_text_changes = 150,
-    },
-    cmd = { os.getenv("HOME") .. "/projects/github/elixir-ls/release/otp23/language_server.sh" },
+  })
+
+  vim.lsp.config('elixirls', {
+    cmd = { vim.env.HOME .. "/projects/github/elixir-ls/release/otp27/language_server.sh" },
+    root_markers = { "mix.exs", ".git" },
     settings = {
-      elixirLS = {dialyzerEnabled = false}
-    }
-  }
-  local servers = { 'tsserver' }
-  for _, lsp in pairs(servers) do
-    require('lspconfig')[lsp].setup {
-      on_attach = custom_lsp_attach,
-      flags = {
-        -- This will be the default in neovim 0.7+
-        debounce_text_changes = 150,
-      }
-    }
+      elixirLS = {
+        dialyzerEnabled = false,
+        fetchDeps = false,
+      },
+    },
+  })
+
+  vim.lsp.config('ruby_lsp', {
+    cmd = { "mise", "x", "--", "ruby-lsp" },
+    init_options = {
+      diagnostics = true,
+      formatting = false,
+      formatter = "none",
+      linters = {},
+    },
+  })
+
+  vim.lsp.enable({ 'elixirls', 'ruby_lsp', 'ts_ls', 'pylsp' })
+EOF
+
+" lua << EOF
+"   require("codecompanion").setup({
+"   opts = {
+"     log_level = 'DEBUG',
+"   },
+"   adapters = {
+"     opts = {
+"       show_defaults = false,
+"     },
+"     openrouter_deepseek = function()
+"       return require("codecompanion.adapters").extend("openai_compatible", {
+"         env = {
+"           url = "https://openrouter.ai/api",
+"           api_key = "OPENROUTER_API_KEY",
+"           chat_url = "/v1/chat/completions",
+"         },
+"         schema = {
+"           model = {
+"             default = "deepseek/deepseek-r1:free",
+"           },
+"         },
+"       })
+"     end
+"   },
+"   strategies = {
+"     chat = {
+"       adapter = "openrouter_deepseek",
+"     },
+"     inline = {
+"       adapter = "openrouter_deepseek",
+"       keymaps = {
+"         accept_change = {
+"           modes = { n = "gA" },
+"         },
+"         reject_change = {
+"           modes = { n = "gR" },
+"         },
+"       },
+"     },
+"   }
+" })
+" EOF
+
+lua << EOF
+  require'treesitter-context'.setup{ enable = true }
+
+  local ok, ts = pcall(require, 'nvim-treesitter')
+  if ok and ts.install then
+    ts.setup()
+    ts.install { "bash", "c", "elixir", "javascript", "lua", "luadoc", "ruby", "markdown", "markdown_inline", "python", "query", "typescript", "vim", "vimdoc", "yaml" }
   end
 EOF
+
+" Avante
+" autocmd! User avante.nvim \
+" lua << EOF
+"   vim.opt.laststatus = 3
+"   -- views can only be fully collapsed with the global statusline
+"   require('avante').setup(
+"   {
+"     ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+"     provider = "openai", -- The provider used in Aider mode or in the planning phase of Cursor Planning Mode
+"     -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
+"     -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
+"     -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
+"     auto_suggestions_provider = "openai",
+"     cursor_applying_provider = nil, -- The provider used in the applying phase of Cursor Planning Mode, defaults to nil, when nil uses Config.provider as the provider for the applying phase
+"     behaviour = {
+"       auto_suggestions = false, -- Experimental stage
+"       auto_set_highlight_group = true,
+"       auto_set_keymaps = true,
+"       auto_apply_diff_after_generation = false,
+"       support_paste_from_clipboard = false,
+"       minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
+"       enable_token_counting = true, -- Whether to enable token counting. Default to true.
+"       enable_cursor_planning_mode = false, -- Whether to enable Cursor Planning Mode. Default to false.
+"       enable_claude_text_editor_tool_mode = false, -- Whether to enable Claude Text Editor Tool Mode.
+"     },
+"     mappings = {
+"       --- @class AvanteConflictMappings
+"       diff = {
+"         ours = "co",
+"         theirs = "ct",
+"         all_theirs = "ca",
+"         both = "cb",
+"         cursor = "cc",
+"         next = "]x",
+"         prev = "[x",
+"       },
+"       suggestion = {
+"         accept = "<M-l>",
+"         next = "<M-]>",
+"         prev = "<M-[>",
+"         dismiss = "<C-]>",
+"       },
+"       jump = {
+"         next = "]]",
+"         prev = "[[",
+"       },
+"       submit = {
+"         normal = "<CR>",
+"         insert = "<C-s>",
+"       },
+"       cancel = {
+"         normal = { "<C-c>", "<Esc>", "q" },
+"         insert = { "<C-c>" },
+"       },
+"       sidebar = {
+"         apply_all = "A",
+"         apply_cursor = "a",
+"         retry_user_request = "r",
+"         edit_user_request = "e",
+"         switch_windows = "<Tab>",
+"         reverse_switch_windows = "<S-Tab>",
+"         remove_file = "d",
+"         add_file = "@",
+"         close = { "<Esc>", "q" },
+"         close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
+"       },
+"     },
+"     hints = { enabled = true },
+"     windows = {
+"       ---@type "right" | "left" | "top" | "bottom"
+"       position = "right", -- the position of the sidebar
+"       wrap = true, -- similar to vim.o.wrap
+"       width = 30, -- default % based on available width
+"       sidebar_header = {
+"         enabled = true, -- true, false to enable/disable the header
+"         align = "center", -- left, center, right for title
+"         rounded = true,
+"       },
+"       input = {
+"         prefix = "> ",
+"         height = 8, -- Height of the input window in vertical layout
+"       },
+"       edit = {
+"         border = "rounded",
+"         start_insert = true, -- Start insert mode when opening the edit window
+"       },
+"       ask = {
+"         floating = false, -- Open the 'AvanteAsk' prompt in a floating window
+"         start_insert = true, -- Start insert mode when opening the ask window
+"         border = "rounded",
+"         ---@type "ours" | "theirs"
+"         focus_on_apply = "ours", -- which diff to focus after applying
+"       },
+"     },
+"     highlights = {
+"       ---@type AvanteConflictHighlights
+"       diff = {
+"         current = "DiffText",
+"         incoming = "DiffAdd",
+"       },
+"     },
+"     --- @class AvanteConflictUserConfig
+"     diff = {
+"       autojump = true,
+"       ---@type string | fun(): any
+"       list_opener = "copen",
+"       --- Override the 'timeoutlen' setting while hovering over a diff (see :help timeoutlen).
+"       --- Helps to avoid entering operator-pending mode with diff mappings starting with `c`.
+"       --- Disable by setting to -1.
+"       override_timeoutlen = 500,
+"     },
+"     suggestion = {
+"       debounce = 600,
+"       throttle = 600,
+"     },
+"   })
+" EOF
 
 " ======================================
 " CUSTOM MAPPINGS
@@ -475,3 +708,144 @@ nnoremap <C-s> <C-a>
 " crazy macros for sorting node imports
 nnoremap <leader>pi vip:sort /.* /<CR>
 nmap <leader>pp ^f{cSBBj0dw$r,viB:s/, /,\r/<CR>viB:sort<CR>viBvxviB:s/,\n/, /<CR>kJJ
+
+" Fugitive Conflict Resolution
+nnoremap <leader>gd :Gvdiff<CR>
+nnoremap gdh :diffget //2<CR>
+nnoremap gdl :diffget //3<CR>
+
+nnoremap <silent> <leader>dp V:diffput<cr>
+nnoremap <silent> <leader>do V:diffget<cr>
+
+" Vova\'s diff conflict
+lua << EOF
+local function diffConflict(view)
+    local currentBufferNumber = 0
+    local bufferLines = vim.api.nvim_buf_get_lines(currentBufferNumber, 0, -1, true)
+    local currentPos = vim.api.nvim_win_get_cursor(currentBufferNumber)[1]
+    local headPositions = {}
+    local theirPositions = {}
+    local parentStartPositions = {}
+    local parentEndPositions = {}
+
+    local identifiers = {head = "<<<<<<<", parentStart = "|||||||", parentEnd = "=======", their = ">>>>>>>"}
+
+    for i = 1, table.getn(bufferLines) do
+        local line = bufferLines[i]
+
+        if string.find(line, identifiers.head) then
+            table.insert(headPositions, i)
+        end
+        if string.find(line, identifiers.parentStart) then
+            table.insert(parentStartPositions, i)
+        end
+        if string.find(line, identifiers.parentEnd) then
+            table.insert(parentEndPositions, i)
+        end
+        if string.find(line, identifiers.their) then
+            table.insert(theirPositions, i)
+        end
+    end
+
+    local conflicts = {}
+    local current_conflict = nil
+
+    for i = 1, table.getn(headPositions) do
+        local headPos = headPositions[i]
+        local parentStartPos = parentStartPositions[i]
+        local parentEndPos = parentEndPositions[i]
+        local theirPos = theirPositions[i]
+
+        local conflict = {
+            headPos = headPos,
+            parentStartPos = parentStartPos,
+            parentEndPos = parentEndPos,
+            theirPos = theirPos
+        }
+
+        table.insert(conflicts, conflict)
+
+        if currentPos >= headPos and currentPos <= theirPos then
+            current_conflict = conflict
+        end
+    end
+
+    if current_conflict then
+        local headLines =
+            vim.api.nvim_buf_get_lines(
+            currentBufferNumber,
+            current_conflict.headPos,
+            current_conflict.parentStartPos - 1,
+            true
+        )
+        local parentLines =
+            vim.api.nvim_buf_get_lines(
+            currentBufferNumber,
+            current_conflict.parentStartPos,
+            current_conflict.parentEndPos - 1,
+            true
+        )
+        local theirLines =
+            vim.api.nvim_buf_get_lines(
+            currentBufferNumber,
+            current_conflict.parentEndPos,
+            current_conflict.theirPos - 1,
+            true
+        )
+
+        vim.cmd("enew")
+
+        local function setLinesToCurrentBuffer(lines)
+            vim.api.nvim_buf_set_lines(currentBufferNumber, 0, 0, true, lines)
+        end
+
+        if view == "head-their" then
+            setLinesToCurrentBuffer(headLines)
+        elseif view == "head-parent" then
+            setLinesToCurrentBuffer(headLines)
+        elseif view == "parent-their" then
+            setLinesToCurrentBuffer(parentLines)
+        end
+
+        vim.cmd("vnew")
+
+        if view == "head-their" then
+            setLinesToCurrentBuffer(theirLines)
+        elseif view == "head-parent" then
+            setLinesToCurrentBuffer(parentLines)
+        elseif view == "parent-their" then
+            setLinesToCurrentBuffer(theirLines)
+        end
+
+        vim.cmd("windo diffthis")
+    else
+        print("Conflict under cursor not found")
+    end
+end
+
+vim.api.nvim_create_user_command(
+    "DiffHeadTheir",
+    function()
+        diffConflict("head-their")
+    end,
+    {}
+)
+vim.api.nvim_create_user_command(
+    "DiffHeadParent",
+    function()
+        diffConflict("head-parent")
+    end,
+    {}
+)
+vim.api.nvim_create_user_command(
+    "DiffParentTheir",
+    function()
+        diffConflict("parent-their")
+    end,
+    {}
+)
+EOF
+
+" vim.keymap.set("n", "<leader>J", ":DiffHeadTheir<CR>", {})
+" vim.keymap.set("n", "<leader>K", ":DiffHeadParent<CR>", {})
+" vim.keymap.set("n", "<leader>L", ":DiffParentTheir<CR>", {})

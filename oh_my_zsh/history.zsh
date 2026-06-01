@@ -7,8 +7,8 @@
 #   Sorin Ionescu <sorin.ionescu@gmail.com>
 #
 
-HISTSIZE=5000
-SAVEHIST=5000
+HISTSIZE=100000
+SAVEHIST=100000
 
 setopt BANG_HIST                 # Treat the '!' character specially during expansion.
 setopt INC_APPEND_HISTORY        # Write to the history file immediately, not when the shell exits.
