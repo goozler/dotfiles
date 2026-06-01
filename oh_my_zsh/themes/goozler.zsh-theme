@@ -1,6 +1,4 @@
 PROMPT='%{$fg_bold[red]%}%m%{$reset_color%}:%{$fg[green]%}%2c%{$reset_color%}%(!.#.$) '
-#RPROMPT='%{$fg_bold[green]%}$(git_prompt_info)%{$reset_color%}% '
-
 ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[green]%}" # "%{$reset_color%}%{$fg[green]%}["
 ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%}"
 ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[red]%}•%{$reset_color%}"
@@ -10,7 +8,7 @@ ZSH_THEME_GIT_PROMPT_AHEAD="%{$fg_bold[red]%}↑"
 ZSH_THEME_GIT_PROMPT_BEHIND="%{$fg_bold[red]%}↓"
 
 git_custom_status() {
-  local cb=$(current_branch)
+  local cb=$(git_current_branch)
   if [ -n "$cb" ]; then
     echo "$(parse_git_dirty)%{$fg_bold[yellow]%}$(work_in_progress)$(git_prompt_ahead)$(git_prompt_behind)%{$reset_color%}$ZSH_THEME_GIT_PROMPT_PREFIX$cb$ZSH_THEME_GIT_PROMPT_SUFFIX"
   fi

@@ -1,12 +1,32 @@
-export ASDF_HASHICORP_OVERWRITE_ARCH="amd64"
-export DIRENV_LOG_FORMAT=""
+# export ASDF_HASHICORP_OVERWRITE_ARCH="amd64"
+# export DIRENV_LOG_FORMAT=""
+export HIST_IGNORE="clear;*|clear"
 export FZF_CTRL_T_COMMAND="rg --files"
 export FZF_DEFAULT_COMMAND="rg --files --hidden"
-export GOBIN=$HOME/go/bin
-export GOPATH=$HOME/go
+export FZF_DEFAULT_OPTS_BASE="--bind 'alt-a:select-all,alt-d:deselect-all'"
+export GOBIN="$HOME/go/bin"
+export GOPATH="$HOME/go"
 export HISTORY_FILTER_EXCLUDE=("clear")
-export KERL_CONFIGURE_OPTIONS="--without-javac"
+export HOMEBREW_REQUIRE_TAP_TRUST=1
+export KERL_CONFIGURE_OPTIONS="
+      --enable-darwin-64bit \
+      --with-odbc=/opt/homebrew/opt/unixodbc \
+      --without-javac \
+      --disable-jit \
+      "
+export KERL_BUILD_DOCS=no
+export KERL_INSTALL_HTMLDOCS=no
+export KERL_INSTALL_MANPAGES=no
 export KEYTIMEOUT=1
+# export BUNDLE_BUILD__="--with-pg-config=$(asdf where postgres)/bin/pg_config"
+export CPPFLAGS="-I/opt/homebrew/opt/unixodbc/include"
+export LDFLAGS="-L/opt/homebrew/opt/unixodbc/lib"
+
+export RTK_TELEMETRY_DISABLED=1
+
+# export LDFLAGS="-L/opt/homebrew/opt/icu4c@74/lib"
+# export CPPFLAGS="-I/opt/homebrew/opt/icu4c@74/include"
+# export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@74/lib/pkgconfig"
 
 # Use dev docker machine as a default
 # export DOCKER_TLS_VERIFY="1"

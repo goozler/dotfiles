@@ -1,1 +1,2 @@
 source $HOME/.oh-my-zsh/custom/tmux.zsh
+source $HOME/.oh-my-zsh/custom/theme.zsh

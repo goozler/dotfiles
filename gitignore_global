@@ -1,3 +1,5 @@
+.envrc
+.claude
 .overcommit.yml
 .pre-commit-config.yaml
 .rubocop.yml
@@ -17,6 +19,8 @@
 .DS_Store
 .local.vimrc
 Result
+Makefile
+Makefile.autocomplete.zsh
 .sql
 .patches
 /tags
@@ -25,7 +29,6 @@ Result
 tags.lock
 tags.temp
 .stuff
-*.log
 config/edit.exs
 /.elixir_ls/
 /1.sql
@@ -34,3 +37,12 @@ config/edit.exs
 /1.json
 /.vim
 /sandbox
+/_build_backups
+mise.toml
+/.cursor
+/.vscode
+HANDOFF.md
+*.pid
+*.log
+_bmad/
+.worktrees/
