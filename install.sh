@@ -26,3 +26,4 @@ done
 ./install-tmux.sh
 ./install-oh-my-zsh.sh
 ./install-vim.sh
+./install-claude.sh
