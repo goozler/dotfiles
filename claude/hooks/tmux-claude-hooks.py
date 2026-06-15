@@ -25,19 +25,35 @@ SUBPROC_TIMEOUT = 1.0
 
 SEVERITY = {"": 0, "working": 1, "done": 1, "waiting": 2, "permission": 3}
 
-# Auto-rename window via the local model: an initial name on the 1st
-# UserPromptSubmit, then a refined name (with more accumulated context) on the
-# Nth. Both go through Ollama — there is no regex slug.
-TOPIC_PROMPT_THRESHOLD = 3
+# Auto-rename window via the local model. Three moments, all through Ollama
+# (no regex slug):
+#   1. A quick initial name from the 1st prompt alone, the instant it's
+#      submitted (UserPromptSubmit) — so the window is labelled before Claude
+#      even starts replying.
+#   2. A refined name when the 1st answer completes (Stop), now that there's a
+#      prompt+answer to summarise.
+#   3. One more refined name when the 2nd answer completes (Stop).
+# The refined names (2 and 3) summarise the last RENAME_RECENT_TURNS prompts
+# together with Claude's prose replies (read from the session transcript, tool
+# calls / file reads / thinking stripped), so the topic reflects where the
+# conversation actually went. After the 2nd answer the name stays put unless you
+# force a refresh with the RENAME sentinel.
+RENAME_UNTIL_TURN = 2  # re-name on the Stop of turns 1..this; 0 disables it
 # TOPIC_MAX_LEN is the length we aim for and ask the model to hit. The trimmer
 # never splits a word, so it may stretch up to TOPIC_HARD_MAX_LEN to keep a
 # whole word — and a single word longer than that is kept in full, never cut.
 TOPIC_MAX_LEN = 20
 TOPIC_HARD_MAX_LEN = 26
-RENAME_CTX_MAX = 500   # cap on the accumulated prompt text fed to the model
-# Manually renaming the window to this sentinel flags it for a fresh rename
-# on the next UserPromptSubmit — using THAT prompt as the topic, not the
-# accumulated session context. Lets you refresh mid-session without restarting.
+# Refined and mid-session names are built from the transcript (your recent
+# prompts + Claude's full prose replies), capped at RENAME_DIALOGUE_MAX chars —
+# when over, the most recent characters win. RENAME_RECENT_TURNS bounds how many
+# recent prompt/answer exchanges are pulled.
+RENAME_DIALOGUE_MAX = 2000
+RENAME_RECENT_TURNS = 2
+# Manually renaming the window to this sentinel flags it for a fresh rename on
+# the next UserPromptSubmit — using the last couple of exchanges (your recent
+# prompts plus Claude's replies, read from the transcript) as the topic. Lets
+# you refresh mid-session without restarting.
 SENTINEL_RENAME = "RENAME"
 # Window names come solely from a tiny local model via Ollama on localhost.
 # This is a plain HTTP call — no API tokens, no cost, and (critically) no nested
@@ -65,13 +81,24 @@ TOUCHED_FILES_DIR = os.path.expanduser("~/.claude/state")
 FILE_TOUCHING_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 # --- Prompt-cache reheat detection -------------------------------------------
-# A "reheat" is a turn whose first API call read nothing from the prompt cache
-# (cache_read_input_tokens == 0) and had to re-create the whole context — i.e.
-# the ~1-hour cache had expired (or was cleared) and this turn paid full
-# price for the entire context. We read the ACTUAL token count from the session
-# transcript (the Stop hook payload carries transcript_path) rather than guess.
+# A "reheat" is a turn whose first API call re-created more context than it read
+# from cache (cache_creation > cache_read, with creation past a floor) — i.e.
+# the prompt cache was mostly cold and this turn paid to rebuild it. Measured
+# empirically: a long-idle session no longer goes fully cold at 1h — a small
+# stable prefix (tools+system) can stay warm for hours, so cache_read is rarely
+# exactly 0; the create>read test catches the partial reheats that read==0
+# missed. We read the ACTUAL token counts from the session transcript (the Stop
+# hook payload carries transcript_path) rather than guess.
 REHEAT_LOG = os.path.join(TOUCHED_FILES_DIR, "cache-reheats.log")
 REHEAT_MIN_TOKENS = int(os.environ.get("CC_REHEAT_MIN_TOKENS", "10000"))
+# Diagnostic log of EVERY turn's first-call cache usage (not just flagged
+# reheats), with the real idle gap before the turn. Lets you verify whether a
+# long-idle session actually goes cold (read==0) or the prompt cache is still
+# warm (read>0) — i.e. whether the cache TTL is longer than the assumed 1h.
+# Off by default; set CC_REHEAT_DEBUG=1 to re-enable (used to diagnose the
+# create>read detection rule — see cache-debug.log).
+REHEAT_DEBUG = os.environ.get("CC_REHEAT_DEBUG") == "1"
+REHEAT_DEBUG_LOG = os.path.join(TOUCHED_FILES_DIR, "cache-debug.log")
 # Only the tail of the transcript is read — the just-finished turn lives at the
 # end of the file, so this bounds the work regardless of total session size.
 REHEAT_TAIL_BYTES = int(os.environ.get("CC_REHEAT_TAIL_BYTES", "2000000"))
@@ -216,12 +243,13 @@ def _llm_summarize(prompt: str) -> str:
     or unparseable output — in which case no rename happens.
     """
     system = (
-        "You convert a user request into a short kebab-case identifier: "
-        "2-3 lowercase words joined by hyphens, max "
-        f"{TOPIC_MAX_LEN} characters, using only lowercase letters, digits, "
-        "and hyphens. Output ONLY the identifier on a single line. No quotes, "
-        "no preamble, no explanation. Examples: fix-auth-bug, update-readme, "
-        "review-tmux-config."
+        "You name the topic of a developer's chat with an AI coding assistant "
+        "as a short kebab-case identifier: 2-3 lowercase words joined by "
+        f"hyphens, max {TOPIC_MAX_LEN} characters, using only lowercase "
+        "letters, digits, and hyphens. The input may be a few you:/claude: "
+        "lines — name what the work is about. Output ONLY the identifier on a "
+        "single line. No quotes, no preamble, no explanation. Examples: "
+        "fix-auth-bug, update-readme, review-tmux-config."
     )
     body = json.dumps(
         {
@@ -256,7 +284,7 @@ def _spawn_llm_rename(pane: str, prompt: str) -> None:
                 os.path.abspath(__file__),
                 "_llm-rename",
                 pane,
-                prompt[:500],
+                prompt[:RENAME_DIALOGUE_MAX],
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -303,56 +331,83 @@ def safe_to_auto_rename(pane: str) -> bool:
     return bool(last_auto) and current == last_auto
 
 
-def _accumulate_rename_ctx(pane: str, prompt: str) -> str:
-    """Append this prompt to the per-window rename context and return it.
-
-    The 1st-prompt name is built from the 1st prompt alone; the refined Nth name
-    uses the first N prompts joined, so the model has the fuller topic to work
-    from. Capped at RENAME_CTX_MAX characters.
-    """
-    if not prompt:
-        return get_option(pane, "@cc-rename-ctx")
-    prev = get_option(pane, "@cc-rename-ctx")
-    combined = (prev + "\n" + prompt) if prev else prompt
-    combined = combined[:RENAME_CTX_MAX]
-    set_option(pane, "@cc-rename-ctx", combined)
-    return combined
-
-
 def maybe_auto_rename(pane: str, payload: dict, count: int) -> None:
-    # Rename via the local model on the 1st prompt (quick initial name) and
-    # again on the Nth (refined with accumulated context). No regex slug — if
-    # Ollama is unreachable the window just keeps its current name.
-    if count > TOPIC_PROMPT_THRESHOLD:
+    """Instant initial name on the 1st prompt, from that prompt alone.
+
+    Fires the moment the first prompt is submitted — before Claude replies — so
+    the window is labelled immediately. The refined, answer-aware renames happen
+    later, on the Stop hook (see maybe_rename_on_answer). No regex slug: if
+    Ollama is unreachable the window just keeps its current name.
+    """
+    if count != 1:
         return
-    ctx = _accumulate_rename_ctx(pane, payload.get("prompt", "") or "")
-    if count not in (1, TOPIC_PROMPT_THRESHOLD):
+    prompt = payload.get("prompt", "") or ""
+    if not prompt or not safe_to_auto_rename(pane):
         return
+    _spawn_llm_rename(pane, prompt)
+
+
+def maybe_rename_on_answer(pane: str, payload: dict) -> None:
+    """Refined rename when an answer completes (Stop hook), turns 1..N.
+
+    Summarises the last RENAME_RECENT_TURNS prompts plus Claude's prose replies
+    (read from the transcript, which now holds the just-finished answer) so the
+    name reflects the actual exchange, not just the opening prompt. Runs only for
+    the first RENAME_UNTIL_TURN answers, then leaves the name alone. Does nothing
+    if the transcript can't be read or the window isn't ours to rename.
+    """
+    if RENAME_UNTIL_TURN <= 0:
+        return
+    try:
+        count = int(get_option(pane, "@cc-prompt-count") or "0")
+    except ValueError:
+        return
+    if not 1 <= count <= RENAME_UNTIL_TURN:
+        return
+    ctx = _recent_dialogue(
+        payload.get("transcript_path", "") or "", RENAME_RECENT_TURNS
+    )
     if not ctx or not safe_to_auto_rename(pane):
         return
     _spawn_llm_rename(pane, ctx)
 
 
-def _force_rename(pane: str, prompt: str) -> None:
-    """Re-rename the window via the local model using `prompt` as the topic.
+def _force_rename(pane: str, payload: dict) -> None:
+    """Re-rename the window via the local model on a mid-session refresh.
 
     Triggered when the user manually sets the window name to SENTINEL_RENAME —
-    the sentinel itself is explicit consent to overwrite. Resets the rename
-    context to this prompt. (If Ollama is down the window stays at "RENAME".)
+    the sentinel itself is explicit consent to overwrite. The topic is the
+    recent dialogue (your last couple of prompts plus Claude's prose replies)
+    read from the transcript, so the new name reflects where the conversation is
+    now — not just the prompt that triggered it. Falls back to that triggering
+    prompt alone if the transcript can't be read. (If Ollama is down the window
+    stays at "RENAME".)
     """
-    if not prompt:
+    prompt = payload.get("prompt", "") or ""
+    ctx = _recent_dialogue(
+        payload.get("transcript_path", "") or "", RENAME_RECENT_TURNS
+    )
+    if ctx and prompt and prompt not in ctx:
+        ctx = f"{ctx}\nyou: {prompt}"[-RENAME_DIALOGUE_MAX:]
+    ctx = ctx or prompt
+    if not ctx:
         return
-    set_option(pane, "@cc-rename-ctx", prompt[:RENAME_CTX_MAX])
     # Mark the current (sentinel) name as ours so the async worker's
     # safe-to-rename check passes and applies the model's name.
     set_option(pane, "@cc-auto-name", get_window_name(pane))
-    _spawn_llm_rename(pane, prompt)
+    _spawn_llm_rename(pane, ctx)
 
 
 def action_prompt_submit(pane: str, payload: dict) -> None:
     sid = payload.get("session_id", "")
     if sid:
         set_option(pane, "@cc-session-id", sid)
+    # Record how long the cache sat idle before THIS turn (now minus the last
+    # cache touch from the previous turn) for the per-turn debug log. Must read
+    # @cc-cache-ts BEFORE _touch_cache_ts below overwrites it.
+    prev_ts = get_option(pane, "@cc-cache-ts")
+    if prev_ts.isdigit():
+        set_option(pane, "@cc-prev-idle", str(int(time.time()) - int(prev_ts)))
     set_option(pane, "@cc-last-prompt-ts", str(int(time.time())))
     _touch_cache_ts(pane)
     # A new turn starts warm; clear the previous turn's reheat marker.
@@ -363,10 +418,11 @@ def action_prompt_submit(pane: str, payload: dict) -> None:
     # Sentinel check: window manually renamed to RENAME → use *this* prompt
     # as the topic and re-rename immediately. Counter logic doesn't run.
     if get_window_name(pane) == SENTINEL_RENAME:
-        _force_rename(pane, payload.get("prompt", "") or "")
+        _force_rename(pane, payload)
         return
 
-    # Per-window prompt counter — drives auto-rename on the Nth prompt.
+    # Per-window prompt counter — drives the instant 1st-prompt rename here and
+    # the answer-aware renames on the Stop hook.
     try:
         count = int(get_option(pane, "@cc-prompt-count") or "0") + 1
     except ValueError:
@@ -382,10 +438,10 @@ def action_session_start(pane: str, payload: dict) -> None:
     unset_option(pane, "@cc-status")
     unset_option(pane, "@cc-reheat")
     unset_option(pane, "@cc-cache-ts")
-    # Reset per-session counters; keep @cc-auto-name so a new session in the
-    # same window can update *our* prior auto-name but never clobber a manual one.
+    # Reset the per-session prompt counter; keep @cc-auto-name so a new session
+    # in the same window can update *our* prior auto-name but never clobber a
+    # manual one.
     unset_option(pane, "@cc-prompt-count")
-    unset_option(pane, "@cc-rename-ctx")
 
 
 def action_session_end(pane: str, _payload: dict) -> None:
@@ -497,33 +553,111 @@ def _is_user_prompt(row: dict) -> bool:
     return False
 
 
-def _analyze_reheat(transcript_path: str) -> tuple:
-    """Inspect the last turn's first API call. Return (is_reheat, tokens_spent).
+def _text_blocks(content) -> str:
+    """Concatenate the `text` of a message's content — `text` blocks only.
 
-    A reheat = the turn's first assistant call read 0 tokens from cache and
-    re-created at least REHEAT_MIN_TOKENS of context (the cache had expired or
-    was cleared). tokens_spent is the full non-cached input that turn paid for:
-    fresh input + re-cached context.
+    Accepts the str or list form of a transcript message's content. Non-text
+    blocks (tool_use, tool_result, thinking, images) are dropped, so tool calls
+    and file reads never leak into the topic context.
+    """
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = [
+            b.get("text", "")
+            for b in content
+            if isinstance(b, dict) and b.get("type") == "text"
+        ]
+        return "\n".join(p for p in parts if p).strip()
+    return ""
 
-    The first turn of a brand-new session is ALSO read==0 + big create (there is
-    no cache yet), but that is an unavoidable cold start, not an idle-expiry
-    reheat — so it is not flagged. We detect it as: no prior main-chain
-    assistant call before this turn, in a transcript read in full (small file).
-    A --resume after a long gap still flags (it has prior history); long
-    sessions are unaffected (their previous turn sits in the tail).
+
+def _assistant_text(row: dict) -> str:
+    """Claude's prose from an assistant transcript row (sidechains excluded)."""
+    if row.get("type") != "assistant" or row.get("isSidechain"):
+        return ""
+    return _text_blocks((row.get("message") or {}).get("content"))
+
+
+def _user_prompt_text(row: dict) -> str:
+    """The user's text from a genuine prompt row (not a tool_result continuation)."""
+    if not _is_user_prompt(row):
+        return ""
+    return _text_blocks((row.get("message") or {}).get("content"))
+
+
+def _recent_dialogue(
+    transcript_path: str,
+    recent_turns: int,
+    max_chars: int = RENAME_DIALOGUE_MAX,
+) -> str:
+    """Recent you/Claude dialogue from the transcript tail, for topic naming.
+
+    Keeps the last `recent_turns` user prompts and every assistant prose reply
+    after the earliest kept prompt, in order, as alternating `you:` / `claude:`
+    lines. Assistant tool calls / file reads / thinking are excluded (see
+    _assistant_text). Returns the most recent `max_chars` characters, or "" when
+    the transcript can't be read — callers then fall back to user-only context.
     """
     if not transcript_path:
-        return False, 0
+        return ""
+    rows, _ = _read_transcript_tail(transcript_path)
+    if not rows:
+        return ""
+    user_idxs = [i for i, r in enumerate(rows) if _is_user_prompt(r)]
+    if not user_idxs:
+        return ""
+    start = (
+        user_idxs[-recent_turns]
+        if len(user_idxs) >= recent_turns
+        else user_idxs[0]
+    )
+    lines = []
+    for row in rows[start:]:
+        is_user = _is_user_prompt(row)
+        text = _user_prompt_text(row) if is_user else _assistant_text(row)
+        if text:
+            lines.append(f"{'you' if is_user else 'claude'}: {text}")
+    return "\n".join(lines)[-max_chars:]
+
+
+def _analyze_reheat(transcript_path: str) -> tuple:
+    """Inspect the last turn's first API call.
+
+    Return (is_reheat, tokens_spent, read, create, inp) — the raw cache_read /
+    cache_creation / input token counts of that first call are surfaced for the
+    per-turn debug log.
+
+    A reheat = the turn's first assistant call re-created at least
+    REHEAT_MIN_TOKENS of context AND re-created more than it read from cache
+    (create > read) — i.e. the prompt cache was mostly cold and this turn paid
+    to rebuild it. The bulk of the ~1h cache expires while a small stable prefix
+    (tools + system, on its own longer-lived cache) can stay warm well past an
+    hour, so cache_read is rarely exactly 0 anymore; `create > read` catches
+    these partial reheats that the old read==0 test missed. It also ignores
+    mid-conversation content pastes (read stays high → create < read).
+    tokens_spent is the full non-cached input that turn paid for: fresh input +
+    re-cached context.
+
+    The first turn of a brand-new session is ALSO a big cold create (there is no
+    cache yet), but that is an unavoidable cold start, not an idle-expiry reheat
+    — so it is not flagged. We detect it as: no prior main-chain assistant call
+    before this turn, in a transcript read in full (small file). A --resume after
+    a long gap still flags (it has prior history); long sessions are unaffected
+    (their previous turn sits in the tail).
+    """
+    if not transcript_path:
+        return False, 0, 0, 0, 0
     rows, truncated = _read_transcript_tail(transcript_path)
     if not rows:
-        return False, 0
+        return False, 0, 0, 0, 0
     start = None
     for i in range(len(rows) - 1, -1, -1):
         if _is_user_prompt(rows[i]):
             start = i
             break
     if start is None:
-        return False, 0
+        return False, 0, 0, 0, 0
     prior_call = any(
         r.get("type") == "assistant"
         and not r.get("isSidechain")
@@ -541,12 +675,12 @@ def _analyze_reheat(transcript_path: str) -> tuple:
         create = usage.get("cache_creation_input_tokens") or 0
         inp = usage.get("input_tokens") or 0
         is_reheat = (
-            read == 0
-            and create >= REHEAT_MIN_TOKENS
+            create >= REHEAT_MIN_TOKENS
+            and create > read
             and not first_turn_of_session
         )
-        return is_reheat, create + inp
-    return False, 0
+        return is_reheat, create + inp, read, create, inp
+    return False, 0, 0, 0, 0
 
 
 def _log_reheat(pane: str, payload: dict, tokens: int) -> None:
@@ -565,6 +699,36 @@ def _log_reheat(pane: str, payload: dict, tokens: int) -> None:
         log(f"reheat-log: {type(e).__name__}: {e}")
 
 
+def _log_reheat_debug(
+    pane: str, payload: dict, read: int, create: int, inp: int,
+    tokens: int, is_reheat: bool,
+) -> None:
+    """Append one per-turn cache-usage record to REHEAT_DEBUG_LOG.
+
+    Records EVERY turn's first-call usage, not just flagged reheats, so you can
+    confirm whether an idle session actually went cold. A line with a long
+    idle=<N>s but read>0 means the prompt cache was still warm — the TTL is
+    longer than the assumed 1h, which is why no reheat fires.
+    """
+    if not REHEAT_DEBUG:
+        return
+    try:
+        os.makedirs(TOUCHED_FILES_DIR, exist_ok=True)
+        ts = datetime.now().isoformat(timespec="seconds")
+        idle = get_option(pane, "@cc-prev-idle") or "?"
+        win = get_window_name(pane) or "?"
+        sid = payload.get("session_id") or get_option(pane, "@cc-session-id") or "?"
+        with open(REHEAT_DEBUG_LOG, "a", encoding="utf-8") as fh:
+            fh.write(
+                f"{ts}  idle={idle}s  read={read}  create={create}  "
+                f"input={inp}  tokens={tokens}  "
+                f"reheat={'yes' if is_reheat else 'no'}  "
+                f"win={win}  session={sid}\n"
+            )
+    except OSError as e:
+        log(f"reheat-debug: {type(e).__name__}: {e}")
+
+
 def action_done(pane: str, payload: dict) -> None:
     stored_session = get_option(pane, "@cc-session-id")
     hook_session = payload.get("session_id", "")
@@ -575,10 +739,16 @@ def action_done(pane: str, payload: dict) -> None:
     action_set_state(pane, "done")
     # Turn just ended → the cache was last read now; the idle clock starts here.
     _touch_cache_ts(pane)
+    # The answer is now in the transcript — refine the window name from this and
+    # the preceding exchange (early turns only; see maybe_rename_on_answer).
+    maybe_rename_on_answer(pane, payload)
     # Did this turn reheat a cold prompt cache? Read the real token cost from the
     # transcript and flag it (status marker + log) so an expensive cache-miss
     # turn is visible after the fact.
-    is_reheat, tokens = _analyze_reheat(payload.get("transcript_path", ""))
+    is_reheat, tokens, read, create, inp = _analyze_reheat(
+        payload.get("transcript_path", "")
+    )
+    _log_reheat_debug(pane, payload, read, create, inp, tokens, is_reheat)
     if is_reheat:
         set_option(pane, "@cc-reheat", _human_tokens(tokens))
         _log_reheat(pane, payload, tokens)
