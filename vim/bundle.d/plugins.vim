@@ -72,6 +72,8 @@ Plug 'Yggdroot/indentLine'
 Plug 'tpope/vim-fugitive' ", { 'tag': 'v3.1' }
 Plug 'shumphrey/fugitive-gitlab.vim'
 Plug 'mhinz/vim-signify'
+Plug 'nvim-lua/plenary.nvim'              " required by diffview
+Plug 'sindrets/diffview.nvim'             " PR-style file list + side-by-side diff browser
 
 " Syntax
 " Plug 'fatih/vim-go' ", { 'do': ':GoUpdateBinaries', 'for': 'go' }

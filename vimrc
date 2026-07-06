@@ -281,6 +281,44 @@ let g:EasyGrepCommand='ag'
 nmap <silent> <leader>g :Git<cr>gg<c-n>
 nmap <leader>d :Gdiff<cr>
 
+" Diffview — PR-style file list + side-by-side diff browser.
+" <leader>gv : open current diff (working tree vs HEAD) in diffview
+" <leader>gV : close diffview
+" <leader>gh : file history for the current file (like `git log -p` browser)
+" <leader>gH : file history for the whole repo
+if has('nvim')
+lua << EOF
+local ok, diffview = pcall(require, 'diffview')
+if ok then
+  diffview.setup({
+    enhanced_diff_hl = true,
+    view = {
+      merge_tool = { layout = 'diff3_mixed' },
+    },
+  })
+end
+EOF
+  nnoremap <silent> <leader>gv :DiffviewOpen<CR>
+  nnoremap <silent> <leader>gV :DiffviewClose<CR>
+  nnoremap <silent> <leader>gh :DiffviewFileHistory %<CR>
+  nnoremap <silent> <leader>gH :DiffviewFileHistory<CR>
+endif
+
+" :ClaudeChanged — load every file Claude has changed (git working tree ∪
+" the per-session edit log written by ~/.claude/hooks/tmux-attention.py)
+" into the argument list. Use :n / :N to step through, or :Buffers (fzf.vim).
+function! s:ClaudeChanged() abort
+  let l:files = systemlist('~/.claude/scripts/claude-changed-files.sh')
+  call filter(l:files, '!empty(v:val) && filereadable(v:val)')
+  if empty(l:files)
+    echo 'No changed files'
+    return
+  endif
+  execute 'args' join(map(l:files, 'fnameescape(v:val)'), ' ')
+endfunction
+command! ClaudeChanged call <SID>ClaudeChanged()
+nnoremap <silent> <leader>gc :ClaudeChanged<CR>
+
 " Vim-commentary
 map  gc  <Plug>Commentary
 nmap gcc <Plug>CommentaryLine
