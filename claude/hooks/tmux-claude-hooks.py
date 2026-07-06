@@ -20,7 +20,10 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
-DEBUG = os.environ.get("CC_TMUX_DEBUG") == "1"
+DEBUG = (
+    os.environ.get("CC_TMUX_DEBUG") == "1"
+    or os.path.exists("/tmp/cc-tmux-debug-on")
+)
 SUBPROC_TIMEOUT = 1.0
 
 SEVERITY = {"": 0, "working": 1, "done": 1, "waiting": 2, "permission": 3}
@@ -33,28 +36,41 @@ SEVERITY = {"": 0, "working": 1, "done": 1, "waiting": 2, "permission": 3}
 #   2. A refined name when the 1st answer completes (Stop), now that there's a
 #      prompt+answer to summarise.
 #   3. One more refined name when the 2nd answer completes (Stop).
-# The refined names (2 and 3) summarise the last RENAME_RECENT_TURNS prompts
-# together with Claude's prose replies (read from the session transcript, tool
-# calls / file reads / thinking stripped), so the topic reflects where the
-# conversation actually went. After the 2nd answer the name stays put unless you
-# force a refresh with the RENAME sentinel.
+# The refined names (2 and 3) summarise the session's OPENING prompts (the stated
+# goal) together with the most recent turns and Claude's prose replies (read from
+# the transcript, tool calls / file reads / thinking stripped) — see
+# _rename_context — so the name reflects what the work is actually about, not just
+# whatever the last turn happened to touch. After the 2nd answer the name stays
+# put unless you force a refresh with the prefix+r hotkey (tmux run-shell → the
+# "rename" action, see action_rename).
+# Every name is folder-led: the model is given the project directory this pane
+# works in (see _pane_folder) and asked to lead with exactly ONE distinctive word
+# from it ("tprov", not "tenant-provisioning-work-tprov") — so you can tell tabs
+# apart by WHERE the work happens without the location eating the whole label.
+# _finalize_name enforces the one-word rule even when the model echoes the full
+# multi-word folder (see _anchor_word).
 RENAME_UNTIL_TURN = 2  # re-name on the Stop of turns 1..this; 0 disables it
 # TOPIC_MAX_LEN is the length we aim for and ask the model to hit. The trimmer
 # never splits a word, so it may stretch up to TOPIC_HARD_MAX_LEN to keep a
 # whole word — and a single word longer than that is kept in full, never cut.
-TOPIC_MAX_LEN = 20
-TOPIC_HARD_MAX_LEN = 26
-# Refined and mid-session names are built from the transcript (your recent
-# prompts + Claude's full prose replies), capped at RENAME_DIALOGUE_MAX chars —
-# when over, the most recent characters win. RENAME_RECENT_TURNS bounds how many
-# recent prompt/answer exchanges are pulled.
-RENAME_DIALOGUE_MAX = 2000
+# The label leads with ONE word for the project folder and then the task
+# (anchor-then-task, e.g. "tprov-fix-enrollment"), so the budget is a little
+# wider than a bare topic.
+TOPIC_MAX_LEN = 26
+TOPIC_HARD_MAX_LEN = 32
+# Names are built from the opening prompts + recent dialogue (see _rename_context),
+# capped at RENAME_DIALOGUE_MAX chars total, split between the two ends on line
+# boundaries. 4000 chars (~1.1k tokens) keeps recent user prompts from being
+# crowded out by Claude's verbose replies, while staying well inside the model's
+# num_ctx=4096 (system + this + output ≈ 1.5k tokens). num_ctx caps the useful
+# ceiling around ~13k chars; bigger than ~4k mostly dilutes a 3B model's label.
+RENAME_DIALOGUE_MAX = 4000
+# Names anchor on BOTH ends of the session: the first RENAME_FIRST_TURNS prompts
+# (which state the actual goal) and the last RENAME_RECENT_TURNS turns (where the
+# work is now). Summarising only the tail let the name drift to whatever
+# sub-detail the last couple of turns happened to touch. Both are tunable.
 RENAME_RECENT_TURNS = 2
-# Manually renaming the window to this sentinel flags it for a fresh rename on
-# the next UserPromptSubmit — using the last couple of exchanges (your recent
-# prompts plus Claude's replies, read from the transcript) as the topic. Lets
-# you refresh mid-session without restarting.
-SENTINEL_RENAME = "RENAME"
+RENAME_FIRST_TURNS = 2
 # Window names come solely from a tiny local model via Ollama on localhost.
 # This is a plain HTTP call — no API tokens, no cost, and (critically) no nested
 # `claude` process. The previous implementation shelled out to `claude -p`, which
@@ -66,7 +82,7 @@ SENTINEL_RENAME = "RENAME"
 OLLAMA_URL = os.environ.get(
     "CC_TMUX_OLLAMA_URL", "http://localhost:11434/api/generate"
 )
-OLLAMA_MODEL = os.environ.get("CC_TMUX_OLLAMA_MODEL", "qwen2.5:1.5b")
+OLLAMA_MODEL = os.environ.get("CC_TMUX_OLLAMA_MODEL", "qwen2.5:3b")
 OLLAMA_KEEP_ALIVE = os.environ.get("CC_TMUX_OLLAMA_KEEP_ALIVE", "10m")
 OLLAMA_TIMEOUT_SECONDS = 20
 # Window names that are safe to overwrite (shells, default process names).
@@ -163,7 +179,27 @@ def unset_option(pane: str, name: str) -> None:
     tmux("set-option", "-w", "-u", "-t", pane, name)
 
 
-def _touch_cache_ts(pane: str) -> None:
+def _bump_workflow(pane: str, delta: int) -> None:
+    """Adjust the in-flight background-task count on this window.
+
+    Drives the "background work running — wait for it" tab colour. Stored
+    as a positive integer while one or more background tasks (Workflow runs,
+    background Agents, background Bash commands) are in flight, and unset once
+    the count returns to zero. We unset rather than store "0" because tmux
+    treats the non-empty string "0" as truthy in #{?...}.
+    """
+    try:
+        n = int(get_option(pane, "@cc-workflow") or "0")
+    except ValueError:
+        n = 0
+    n = max(0, n + delta)
+    if n > 0:
+        set_option(pane, "@cc-workflow", str(n))
+    else:
+        unset_option(pane, "@cc-workflow")
+
+
+def _touch_cache_ts(pane: str, now: int | None = None) -> None:
     """Record 'now' as the last moment this session touched the prompt cache.
 
     Anthropic's prompt cache refreshes its 5-min TTL on every read, and the
@@ -173,7 +209,7 @@ def _touch_cache_ts(pane: str) -> None:
     API-call boundary (prompt submit, tool completion, waiting, done) and the
     status-bar countdown anchors on it, not on the prompt-submit time.
     """
-    set_option(pane, "@cc-cache-ts", str(int(time.time())))
+    set_option(pane, "@cc-cache-ts", str(now if now is not None else int(time.time())))
 
 
 def read_stdin_json() -> dict:
@@ -215,6 +251,220 @@ def _truncate_kebab(
     return result
 
 
+# Whole-word synonym / abbreviation groups, collapsed so a label never says the
+# same idea twice two ways ("context-ctx", "config-cfg"). Within a name the FIRST
+# form encountered is kept and any later equivalent is dropped. Matched on whole
+# words only — never substrings — so "auth" never swallows "author". Kept short
+# and conservative: add a row only when the forms truly mean the same thing in a
+# tab label.
+_SYNONYM_GROUPS = [
+    {"context", "ctx"},
+    {"config", "cfg", "configuration"},
+    {"repo", "repository"},
+    {"auth", "authentication", "authn"},
+    {"env", "environment"},
+    {"db", "database"},
+    {"k8s", "kubernetes"},
+    {"docs", "doc", "documentation"},
+    {"app", "application"},
+    {"deps", "dependencies", "dependency"},
+]
+# word -> group index, for O(1) concept lookup.
+_SYNONYM_CANON = {w: i for i, group in enumerate(_SYNONYM_GROUPS) for w in group}
+
+
+def _dedupe_words(name: str) -> str:
+    """Drop repeated words AND synonym/abbreviation duplicates, keeping order.
+
+    Two passes of redundancy are removed, first occurrence wins:
+      - exact repeats — the tiny model echoes a folder word in the task half
+        ("mobile-…-mobile") or repeats a topic word ("tdd-…-tdd");
+      - same idea said two ways — a word whose synonym/abbreviation was already
+        kept ("context" then "ctx"), via _SYNONYM_CANON.
+    Safe for these short labels, where a genuine repeated word is rare.
+    """
+    seen_words: set[str] = set()
+    seen_concepts: set[int] = set()
+    out = []
+    for word in name.split("-"):
+        if not word or word in seen_words:
+            continue
+        concept = _SYNONYM_CANON.get(word)
+        if concept is not None:
+            if concept in seen_concepts:
+                continue  # a synonym/abbrev of this idea is already in the name
+            seen_concepts.add(concept)
+        seen_words.add(word)
+        out.append(word)
+    return "-".join(out)
+
+
+# Articles / prepositions / linking words that carry no signal in a label and
+# just eat the character budget. Stripped from the generated name.
+_STOPWORDS = {
+    "a", "an", "the", "of", "to", "for", "and", "or", "but", "nor",
+    "in", "on", "at", "by", "with", "from", "into", "onto", "as",
+    "is", "are", "be", "was", "were",
+}
+
+
+def _strip_stopwords(name: str) -> str:
+    """Drop stopwords (a, the, of, …) from a kebab name to shorten and de-noise.
+
+    "examples-of-the-real-topic" → "examples-real-topic". Keeps the original if
+    every word is a stopword, so a degenerate input isn't blanked here — that's
+    _is_degenerate_name's job.
+    """
+    words = [w for w in name.split("-") if w]
+    kept = [w for w in words if w not in _STOPWORDS]
+    return "-".join(kept) if kept else "-".join(words)
+
+
+# Trailing folder words that add no signal — dropped so "mobile-app" leads with
+# "mobile" and "auth-service" with "auth". Only stripped when something precedes
+# them, so a folder literally named "app" or "api" survives.
+GENERIC_FOLDER_SUFFIXES = {
+    "app", "application", "service", "svc", "api", "web", "ui",
+    "frontend", "backend", "server", "client",
+}
+
+# Folder words that carry no project signal ANYWHERE in the name, not just as a
+# suffix — skipped when picking the one anchor word ("tenant-provisioning-work-
+# tprov" should anchor on "tprov", never "work"). Only ignored while choosing;
+# if every word is generic the folder's own words are used as-is.
+GENERIC_FOLDER_WORDS = {
+    "work", "working", "wip", "dev", "devel", "main", "misc", "new", "old",
+}
+
+# Folders whose name carries no project signal — when work happens in one of
+# these the location is dropped and the label is task-only (no "tmp-" prefix).
+# Compared lowercase. Add throwaway/parent dirs you never want in a tab name.
+EXCLUDED_FOLDER_NAMES = {
+    "tmp", "temp", "tmpdir", "scratch", "sandbox", "work", "workspace",
+    "downloads", "desktop", "documents", "home", "src", "code", "projects",
+}
+
+
+def _folder_words(folder: str) -> list:
+    """Folder name as a list of kebab words. [] for an empty folder."""
+    folder = re.sub(r"[^a-z0-9-]+", "-", folder.lower()).strip("-")
+    folder = re.sub(r"-+", "-", folder)
+    return [w for w in folder.split("-") if w]
+
+
+def _pick_anchor(words: list) -> str:
+    """The single most distinctive word of a folder-word list.
+
+    Heuristic: skip GENERIC_FOLDER_WORDS, then take the SHORTEST remaining word
+    (ties → first). Short wins because project aliases/abbreviations are short
+    ("tprov" in "tenant-provisioning-work-tprov", "java" in "java-upgrade",
+    "irx" in "irx-dev") while filler is long ("consolidation", "provisioning").
+    Falls back to the full list when every word is generic. "" for [].
+    """
+    if not words:
+        return ""
+    kept = [w for w in words if w not in GENERIC_FOLDER_WORDS] or words
+    return min(kept, key=len)
+
+
+def _anchor_word(folder: str) -> str:
+    """The ONE word that stands for this folder in a tab label.
+
+    "mobile-app" → "mobile", "java-upgrade" → "java",
+    "tenant-provisioning-work-tprov" → "tprov", "irx-dev" → "irx".
+    Used both to hint the model and to guarantee a location word is present if
+    the model omits it. "" for an empty folder.
+    """
+    words = _folder_words(folder)
+    while len(words) > 1 and words[-1] in GENERIC_FOLDER_SUFFIXES:
+        words.pop()
+    return _pick_anchor(words)
+
+
+def _finalize_name(name: str, folder: str) -> str:
+    """Guarantee the label leads with ONE location word, then dedupe and trim.
+
+    Two repairs, both enforcing the one-word-location rule:
+      - The model echoed the folder ("tenant-provisioning-work-planning"):
+        the leading run of folder words is collapsed to the single anchor word
+        ("tprov-planning") so a multi-word folder never eats the label.
+      - The model produced a task-only label (ignored the folder): the anchor
+        word is prefixed so the tab still shows WHERE the work happens.
+    A label that already leads with one folder word passes through unchanged.
+    """
+    if not name:
+        return ""
+    words = set(_folder_words(folder))
+    anchor = _anchor_word(folder)
+    if not anchor:
+        return name
+    parts = name.split("-")
+    run = 0
+    while run < len(parts) and parts[run] in words:
+        run += 1
+    if run:
+        lead = parts[:run]
+        best = anchor if anchor in lead else _pick_anchor(lead)
+        parts = [best] + parts[run:]
+    else:
+        parts = [anchor] + parts
+    return _truncate_kebab(_dedupe_words("-".join(parts)))
+
+
+# Example labels shown to the model for format guidance. Defined once and reused in
+# both the summariser prompt and the reject set below so the two cannot drift apart.
+# They use the fictional folder "acme" to demonstrate the folder-then-task shape
+# without colliding with a real project name (so rejecting an exact echo is safe).
+RENAME_EXAMPLE_LABELS = ("acme-fix-auth-bug", "acme-update-readme", "acme-add-dark-mode")
+
+# A tiny local model that fails to summarise regurgitates its own instructions
+# ("2-3 lowercase words joined by hyphens" → "2-3-lowercase-words-joined"), echoes
+# one of the example labels verbatim ("acme-fix-auth-bug" on an unrelated chat),
+# or emits a generic meta-word. Reject all three so a junk name is never applied —
+# once applied it sticks, since the refined renames stop after RENAME_UNTIL_TURN.
+# The example labels are generic and unlikely to be a real topic, so rejecting an
+# exact echo costs nothing; only the full string is blocked, not its words (a
+# genuinely auth-related chat still gets a variant like "auth-fix").
+# Only entries NOT already caught by a more general rule below belong here —
+# anything containing a _REJECT_TOKENS word, a "gpt" word, or the "chat-with-"
+# prefix is handled there, so listing it here too would be dead weight.
+_REJECT_NAMES = {
+    # Instruction-echo phrases with no _REJECT_TOKENS word to catch them.
+    "two-or-three-words", "two-three-words", "2-3-words",
+    "topic-name", "topic", "label",
+    # Medium-not-topic outputs (see _MEDIUM_NAME_RE): two-word "<medium>-<medium>"
+    # labels the model emits on a contentless opener, not matched by the regex.
+    "ai-assistant", "ai-chat", "chat-assistant", "chat-conversation",
+    "ai-conversation", "chat-session", "hello-chat", "chat-start",
+} | set(RENAME_EXAMPLE_LABELS)
+_REJECT_TOKENS = {
+    "lowercase", "kebab", "hyphen", "hyphens", "identifier", "placeholder",
+}
+# A second failure mode of the tiny model: given a contentless opening prompt
+# ("ok", "yes", "hi", "test") it has no topic to extract, so it names the
+# *medium* — the conversation itself — e.g. "chat-gpt-4-test",
+# "chat-gpt-4-interview", "gpt-3.5-turbo", "chat-with-ai". None of these describe
+# the work, so reject them. We key on "gpt" as a word (the tell of a
+# self-referential model name) and the "chat-with-<agent>" shape, while leaving
+# genuine topics that merely contain "chat"/"ai"/"model" (e.g. "chat-export-bug",
+# "model-training") untouched — those words are only rejected in the medium
+# shapes above, never on their own.
+_MEDIUM_NAME_RE = re.compile(r"(^|-)gpt(\d|-|$)|^chat-with-")
+
+
+def _is_degenerate_name(name: str) -> bool:
+    """True for outputs that echo the instructions or name the medium, not the chat."""
+    if not name:
+        return True
+    if not re.search(r"[a-z]", name):  # digits/hyphens only — not a real topic
+        return True
+    if name in _REJECT_NAMES:
+        return True
+    if _MEDIUM_NAME_RE.search(name):  # labels the conversation itself, not the work
+        return True
+    return bool(_REJECT_TOKENS & set(name.split("-")))
+
+
 def _clean_llm_output(raw: str) -> str:
     """Coerce the model's output into a kebab-case identifier, tolerantly.
 
@@ -231,34 +481,61 @@ def _clean_llm_output(raw: str) -> str:
     candidate = candidate.strip("\"'`*_<>[]() ")
     cleaned = re.sub(r"[^a-z0-9-]+", "-", candidate.lower())
     cleaned = re.sub(r"-+", "-", cleaned).strip("-")
-    return _truncate_kebab(cleaned)
+    cleaned = _strip_stopwords(cleaned)
+    cleaned = _dedupe_words(cleaned)
+    cleaned = _truncate_kebab(cleaned)
+    return "" if _is_degenerate_name(cleaned) else cleaned
 
 
-def _llm_summarize(prompt: str) -> str:
-    """Ask the local Ollama model for a kebab-case topic identifier.
+def _llm_summarize(prompt: str, folder: str = "") -> str:
+    """Ask the local Ollama model for a folder-led kebab-case label.
 
-    A single non-streaming HTTP call to a tiny model on localhost. The
-    system prompt fully constrains the output, so there is no agent, no
-    tool use, and no token cost. Returns "" on connection failure, timeout,
-    or unparseable output — in which case no rename happens.
+    The label leads with ONE word standing for the project location (the folder
+    this pane works in, compressed to its most distinctive word) and then the
+    specific task — e.g. folder "tenant-provisioning-work-tprov" + a chat about
+    planning → "tprov-planning". A single non-streaming HTTP call to a tiny
+    model on localhost: no agent, no tool use, no token cost. Returns "" on
+    connection failure, timeout, or unparseable output — no rename happens.
     """
     system = (
-        "You name the topic of a developer's chat with an AI coding assistant "
-        "as a short kebab-case identifier: 2-3 lowercase words joined by "
-        f"hyphens, max {TOPIC_MAX_LEN} characters, using only lowercase "
-        "letters, digits, and hyphens. The input may be a few you:/claude: "
-        "lines — name what the work is about. Output ONLY the identifier on a "
-        "single line. No quotes, no preamble, no explanation. Examples: "
-        "fix-auth-bug, update-readme, review-tmux-config."
+        "You name a tmux tab for a developer's coding session so they can tell "
+        "their tabs apart. You are given the project FOLDER the work happens in "
+        "and a few you:/claude: lines of the chat. Reply with ONE short "
+        "kebab-case label: one location word first, then the specific task — "
+        f"two or three words total, max {TOPIC_MAX_LEN} characters, using only "
+        "lowercase letters, digits, and single hyphens. "
+        "The location must be exactly ONE word: pick the single most "
+        "distinctive word of the folder name, preferring a short project alias "
+        "('tprov' from 'tenant-provisioning-work-tprov', 'java' from "
+        "'java-upgrade', 'mobile' from 'mobile-app'). NEVER copy a multi-word "
+        "folder name whole. After the location word, every word must describe "
+        "the task discussed in the chat — never another folder word or its "
+        "abbreviation. "
+        "Never repeat a word, and never say the same idea twice with a synonym "
+        "or abbreviation (not 'context-ctx', not 'config-cfg'). "
+        "Name the SPECIFIC task of THIS chat. Do not echo "
+        "these instructions or the example labels. Output ONLY the label on a "
+        "single line — no quotes, preamble, or explanation. Example labels (do "
+        f"not reuse): {', '.join(RENAME_EXAMPLE_LABELS)}."
     )
+    user = f"Project folder: {folder}\n\n{prompt}" if folder else prompt
     body = json.dumps(
         {
             "model": OLLAMA_MODEL,
             "system": system,
-            "prompt": prompt,
+            "prompt": user,
             "stream": False,
             "keep_alive": OLLAMA_KEEP_ALIVE,
-            "options": {"temperature": 0.2, "num_predict": 24, "stop": ["\n"]},
+            # num_ctx pins the namer's window independent of Ollama's global
+            # setting: ~200 tok system + up to ~600 tok dialogue + 32 tok out
+            # fits well inside 4096, so the tab-rename stays lean no matter how
+            # large the global context is set for other Ollama uses.
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 32,
+                "num_ctx": 4096,
+                "stop": ["\n"],
+            },
         }
     ).encode()
     req = urllib.request.Request(
@@ -270,7 +547,7 @@ def _llm_summarize(prompt: str) -> str:
     except (urllib.error.URLError, OSError, ValueError) as e:
         log(f"ollama call failed: {type(e).__name__}: {e}")
         return ""
-    return _clean_llm_output(data.get("response", ""))
+    return _finalize_name(_clean_llm_output(data.get("response", "")), folder)
 
 
 def _spawn_llm_rename(pane: str, prompt: str) -> None:
@@ -295,9 +572,41 @@ def _spawn_llm_rename(pane: str, prompt: str) -> None:
         log(f"llm rename spawn failed: {e}")
 
 
+def _pane_folder(pane: str) -> str:
+    """The project folder this pane works in — git repo root name, else cwd base.
+
+    Read from the pane's current path via tmux (the dir Claude was launched in).
+    Prefer the git top-level basename so the name stays stable from any subdir;
+    fall back to the directory's own basename when it isn't a repo. "" when the
+    path can't be read.
+    """
+    path = tmux(
+        "display-message", "-p", "-t", pane, "#{pane_current_path}", capture=True
+    )
+    if not path:
+        return ""
+    try:
+        result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROC_TIMEOUT,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            path = result.stdout.strip()
+    except (subprocess.TimeoutExpired, OSError):
+        pass  # git missing / slow / not a repo — keep the pane path
+    if path.rstrip("/") == os.path.expanduser("~").rstrip("/"):
+        return ""  # running in $HOME — the basename is just your username
+    base = os.path.basename(path.rstrip("/"))
+    if base.lower() in EXCLUDED_FOLDER_NAMES:
+        return ""  # no project signal (e.g. tmp) — name the task only
+    return base
+
+
 def action_llm_rename(pane: str, prompt: str) -> None:
     """Background worker entrypoint: ask the local model for a name and apply it."""
-    name = _llm_summarize(prompt)
+    name = _llm_summarize(prompt, _pane_folder(pane))
     if not name:
         return
     if not safe_to_auto_rename(pane):
@@ -344,17 +653,26 @@ def maybe_auto_rename(pane: str, payload: dict, count: int) -> None:
     prompt = payload.get("prompt", "") or ""
     if not prompt or not safe_to_auto_rename(pane):
         return
+    # A contentless opener ("ok", "yes", "hi", "test") gives the tiny model
+    # nothing to summarise, so it labels the medium instead ("chat-gpt-4-test").
+    # Skip the instant rename for such openers and let the answer-aware refine on
+    # the turn-1 Stop name the window from the actual exchange (which by then has
+    # Claude's reply in the transcript). The _MEDIUM_NAME_RE guard still backstops
+    # any longer prompt that slips through.
+    if len(prompt.split()) < 3:
+        return
     _spawn_llm_rename(pane, prompt)
 
 
-def maybe_rename_on_answer(pane: str, payload: dict) -> None:
+def maybe_rename_on_answer(pane: str, rows: list, transcript: str) -> None:
     """Refined rename when an answer completes (Stop hook), turns 1..N.
 
-    Summarises the last RENAME_RECENT_TURNS prompts plus Claude's prose replies
-    (read from the transcript, which now holds the just-finished answer) so the
-    name reflects the actual exchange, not just the opening prompt. Runs only for
-    the first RENAME_UNTIL_TURN answers, then leaves the name alone. Does nothing
-    if the transcript can't be read or the window isn't ours to rename.
+    Summarises the session's opening prompts plus the most recent turns and
+    Claude's prose replies (see _rename_context; `rows` is the already-parsed
+    transcript tail holding the just-finished answer, `transcript` its path for
+    the head read) so the name reflects the goal, not just the latest sub-detail.
+    Runs only for the first RENAME_UNTIL_TURN answers, then leaves the name alone.
+    Does nothing if there's no dialogue or the window isn't ours to rename.
     """
     if RENAME_UNTIL_TURN <= 0:
         return
@@ -364,38 +682,44 @@ def maybe_rename_on_answer(pane: str, payload: dict) -> None:
         return
     if not 1 <= count <= RENAME_UNTIL_TURN:
         return
-    ctx = _recent_dialogue(
-        payload.get("transcript_path", "") or "", RENAME_RECENT_TURNS
-    )
+    ctx = _rename_context(rows, transcript, RENAME_RECENT_TURNS, RENAME_FIRST_TURNS)
     if not ctx or not safe_to_auto_rename(pane):
         return
     _spawn_llm_rename(pane, ctx)
 
 
-def _force_rename(pane: str, payload: dict) -> None:
-    """Re-rename the window via the local model on a mid-session refresh.
+def action_rename(pane: str, _payload: dict) -> None:
+    """Manual rename, bound to prefix+r — re-name the window from the chat now.
 
-    Triggered when the user manually sets the window name to SENTINEL_RENAME —
-    the sentinel itself is explicit consent to overwrite. The topic is the
-    recent dialogue (your last couple of prompts plus Claude's prose replies)
-    read from the transcript, so the new name reflects where the conversation is
-    now — not just the prompt that triggered it. Falls back to that triggering
-    prompt alone if the transcript can't be read. (If Ollama is down the window
-    stays at "RENAME".)
+    Replaces the old "rename the window to RENAME" sentinel flow with an explicit
+    hotkey. Summarises the recent dialogue (your last couple of prompts plus
+    Claude's prose replies) from the transcript recorded on the pane
+    (@cc-transcript) and applies a fresh name. The keypress is explicit consent,
+    so it overwrites the current name regardless of what it is. No-op if no
+    transcript has been recorded yet or Ollama is unreachable.
     """
-    prompt = payload.get("prompt", "") or ""
-    ctx = _recent_dialogue(
-        payload.get("transcript_path", "") or "", RENAME_RECENT_TURNS
-    )
-    if ctx and prompt and prompt not in ctx:
-        ctx = f"{ctx}\nyou: {prompt}"[-RENAME_DIALOGUE_MAX:]
-    ctx = ctx or prompt
+    transcript = get_option(pane, "@cc-transcript")
+    rows, _ = _read_transcript_tail(transcript)
+    ctx = _rename_context(rows, transcript, RENAME_RECENT_TURNS, RENAME_FIRST_TURNS)
     if not ctx:
         return
-    # Mark the current (sentinel) name as ours so the async worker's
-    # safe-to-rename check passes and applies the model's name.
+    # Explicit consent to overwrite: mark the current name as ours so the async
+    # worker's safe-to-rename check passes and applies the model's name.
     set_option(pane, "@cc-auto-name", get_window_name(pane))
     _spawn_llm_rename(pane, ctx)
+
+
+def _is_system_notification(prompt: str) -> bool:
+    """True when a UserPromptSubmit payload is a harness notification, not a user.
+
+    A background Bash/Agent task completing re-invokes Claude with a synthetic
+    prompt wrapped in <task-notification> (observed empirically; Workflow
+    completions fire no prompt-submit at all). Such a turn must NOT count as
+    user-initiated: @cc-turn-had-prompt stays unset so its Stop retires one
+    background task from the background-work marker (see action_done), and it must not
+    advance the prompt counter or trigger a rename.
+    """
+    return prompt.lstrip().startswith("<task-notification>")
 
 
 def action_prompt_submit(pane: str, payload: dict) -> None:
@@ -405,21 +729,28 @@ def action_prompt_submit(pane: str, payload: dict) -> None:
     # Record how long the cache sat idle before THIS turn (now minus the last
     # cache touch from the previous turn) for the per-turn debug log. Must read
     # @cc-cache-ts BEFORE _touch_cache_ts below overwrites it.
+    now = int(time.time())
     prev_ts = get_option(pane, "@cc-cache-ts")
     if prev_ts.isdigit():
-        set_option(pane, "@cc-prev-idle", str(int(time.time()) - int(prev_ts)))
-    set_option(pane, "@cc-last-prompt-ts", str(int(time.time())))
-    _touch_cache_ts(pane)
+        set_option(pane, "@cc-prev-idle", str(now - int(prev_ts)))
+    set_option(pane, "@cc-last-prompt-ts", str(now))
+    _touch_cache_ts(pane, now)
     # A new turn starts warm; clear the previous turn's reheat marker.
     unset_option(pane, "@cc-reheat")
     # Force-set "working" (bypasses severity merge — a new turn always overrides).
     set_option(pane, "@cc-status", "working")
-
-    # Sentinel check: window manually renamed to RENAME → use *this* prompt
-    # as the topic and re-rename immediately. Counter logic doesn't run.
-    if get_window_name(pane) == SENTINEL_RENAME:
-        _force_rename(pane, payload)
+    unset_option(pane, "@cc-waiting-tool")  # any pending question died with the old turn
+    # A harness notification (background task completing) is a system
+    # re-invocation, not a user turn: leave @cc-turn-had-prompt unset so this
+    # turn's Stop retires one background task from the background-work marker, and don't
+    # let it advance the prompt counter or trigger a rename.
+    if _is_system_notification(payload.get("prompt", "") or ""):
         return
+    # Mark this turn as user-initiated. The Stop hook reads it to tell a real
+    # prompt turn apart from a system re-invocation (a background Workflow
+    # reporting back fires no prompt-submit at all; a background Bash/Agent
+    # completion fires one, filtered above) — see action_done's bookkeeping.
+    set_option(pane, "@cc-turn-had-prompt", "1")
 
     # Per-window prompt counter — drives the instant 1st-prompt rename here and
     # the answer-aware renames on the Stop hook.
@@ -438,14 +769,50 @@ def action_session_start(pane: str, payload: dict) -> None:
     unset_option(pane, "@cc-status")
     unset_option(pane, "@cc-reheat")
     unset_option(pane, "@cc-cache-ts")
+    unset_option(pane, "@cc-workflow")
+    unset_option(pane, "@cc-turn-had-prompt")
     # Reset the per-session prompt counter; keep @cc-auto-name so a new session
     # in the same window can update *our* prior auto-name but never clobber a
     # manual one.
     unset_option(pane, "@cc-prompt-count")
+    unset_option(pane, "@cc-waiting-tool")
+    # Drop the previous session's transcript pointer (prefix+r reads it) so a
+    # manual rename can't summarise a stale conversation.
+    unset_option(pane, "@cc-transcript")
 
 
 def action_session_end(pane: str, _payload: dict) -> None:
     unset_option(pane, "@cc-status")
+    unset_option(pane, "@cc-workflow")
+    unset_option(pane, "@cc-turn-had-prompt")
+    unset_option(pane, "@cc-waiting-tool")
+    # Clear the cache markers too — without this the countdown timer
+    # (@cc-cache-ts) keeps running and the reheat/cold-cache marker
+    # (@cc-reheat) stays visible after Claude has closed, even though the
+    # colour (@cc-status) already reset to grey.
+    unset_option(pane, "@cc-cache-ts")
+    unset_option(pane, "@cc-reheat")
+    # The session is gone; its transcript pointer (read by prefix+r) is stale.
+    unset_option(pane, "@cc-transcript")
+
+
+def action_reset(pane: str, _payload: dict) -> None:
+    """Manual clear (tmux prefix+u): drop every attention marker on this window.
+
+    The only reliable recovery for states no hook can clear — chiefly an ESC
+    interrupt (no Stop fires, so "working" would otherwise stay latched) and a
+    background-workflow marker left stuck because its completion never produced
+    a no-prompt Stop (killed run, batched concurrent completions).
+    """
+    unset_option(pane, "@cc-status")
+    unset_option(pane, "@cc-workflow")
+    unset_option(pane, "@cc-turn-had-prompt")
+    unset_option(pane, "@cc-waiting-tool")
+    # Full clear: also drop the cache markers, so a manual reset recovers a
+    # window left with a stale countdown timer (@cc-cache-ts) or cold-cache
+    # marker (@cc-reheat) — e.g. after a hard kill that fired no SessionEnd.
+    unset_option(pane, "@cc-cache-ts")
+    unset_option(pane, "@cc-reheat")
 
 
 def action_set_state(pane: str, new_state: str) -> None:
@@ -454,32 +821,96 @@ def action_set_state(pane: str, new_state: str) -> None:
         set_option(pane, "@cc-status", new_state)
 
 
-def _append_touched_file(session_id: str, file_path: str) -> None:
-    """Append a Claude-edited file path to the per-session touched-files log."""
+def _append_line(path: str, line: str, what: str) -> None:
+    """Append `line` to a log file under TOUCHED_FILES_DIR, best-effort.
+
+    Ensures the directory exists and swallows OSError (logging it under the
+    `what` label). Shared by the touched-files and reheat logs.
+    """
     try:
         os.makedirs(TOUCHED_FILES_DIR, exist_ok=True)
-        path = os.path.join(TOUCHED_FILES_DIR, f"session-{session_id}-touched.txt")
         with open(path, "a", encoding="utf-8") as fh:
-            fh.write(file_path + "\n")
+            fh.write(line)
     except OSError as e:
-        log(f"touched-log: {type(e).__name__}: {e}")
+        log(f"{what}: {type(e).__name__}: {e}")
 
 
-def action_waiting(pane: str, _payload: dict) -> None:
+def _resolve_session_id(pane: str, payload: dict, default: str = "") -> str:
+    """Session id from the hook payload, else the stored @cc-session-id option."""
+    return payload.get("session_id") or get_option(pane, "@cc-session-id") or default
+
+
+def _append_touched_file(session_id: str, file_path: str) -> None:
+    """Append a Claude-edited file path to the per-session touched-files log."""
+    path = os.path.join(TOUCHED_FILES_DIR, f"session-{session_id}-touched.txt")
+    _append_line(path, file_path + "\n", "touched-log")
+
+
+# Tools that run in the background only when asked to via run_in_background.
+# Workflow is background always and is special-cased in _is_background_launch.
+BACKGROUND_CAPABLE_TOOLS = {"Agent", "Bash"}
+
+
+def _is_background_launch(payload: dict) -> bool:
+    """True when this PostToolUse is a background-task LAUNCH, not a completion.
+
+    Covers every tool whose completion later re-invokes Claude with a no-prompt
+    Stop (the retirement signal in action_done): Workflow (always background)
+    and Agent / Bash called with run_in_background=true. Blocking calls of the
+    same tools keep the turn open — the tab stays blue on @cc-status alone — so
+    they are not counted.
+    """
+    tool = payload.get("tool_name", "")
+    if tool == "Workflow":
+        return True
+    if tool in BACKGROUND_CAPABLE_TOOLS:
+        return bool((payload.get("tool_input") or {}).get("run_in_background"))
+    return False
+
+
+def action_waiting(pane: str, payload: dict) -> None:
     # The model just made an API call that needs you (permission / idle prompt),
     # so the cache was read moments ago — anchor the idle clock here too.
     _touch_cache_ts(pane)
+    # Remember WHICH tool is waiting on you. PermissionRequest carries the
+    # tool_name (no tool_use_id, so the name is the best key available);
+    # tool-completed reverts waiting→working only when a tool with THIS name
+    # finishes. Without the key, a session running parallel agents cleared a
+    # pending AskUserQuestion within seconds: every subagent Bash/Read
+    # completion tripped the old "any tool finished → waiting resolved" rule
+    # while the question was still on screen. An idle/elicitation Notification
+    # has no tool — the key is unset and any completion reverts, as before.
+    tool_name = payload.get("tool_name") or ""
+    if tool_name:
+        set_option(pane, "@cc-waiting-tool", tool_name)
+    else:
+        unset_option(pane, "@cc-waiting-tool")
     action_set_state(pane, "waiting")
 
 
 def action_tool_completed(pane: str, payload: dict) -> None:
     # A tool finished; the next API call (which re-reads the cache) is imminent.
     _touch_cache_ts(pane)
-    # When a tool finishes, a prior `waiting` state (set by PermissionRequest)
-    # is resolved — revert to working. Force-set because severity would block
-    # the waiting→working transition.
+
+    # Background launches return immediately, so this PostToolUse fires at
+    # LAUNCH, not at completion: the Workflow tool is always background, and
+    # Agent / Bash are when called with run_in_background. Mark the task in
+    # flight → the tab takes the background-work colour so the turn's grey "done" look still says
+    # "Claude is waiting on ITS OWN work, not on you". It's retired later in
+    # action_done, when the completion re-invocation ends with a no-prompt Stop.
+    if _is_background_launch(payload):
+        _bump_workflow(pane, +1)
+    # When the tool that asked for permission finishes, the `waiting` state is
+    # resolved — revert to working. Force-set because severity would block the
+    # waiting→working transition. Matched by tool NAME (@cc-waiting-tool, set
+    # in action_waiting): completions of OTHER tools — parallel agents'
+    # Bash/Read flurries — must not clear a question still on screen. When no
+    # name was recorded (idle Notification), any completion reverts, as before.
     if get_option(pane, "@cc-status") == "waiting":
-        set_option(pane, "@cc-status", "working")
+        waiting_tool = get_option(pane, "@cc-waiting-tool")
+        if not waiting_tool or waiting_tool == payload.get("tool_name"):
+            set_option(pane, "@cc-status", "working")
+            unset_option(pane, "@cc-waiting-tool")
 
     # Log file edits so :ClaudeChanged / prefix+E can find them later, even
     # after they're committed (git status alone misses post-commit files).
@@ -490,7 +921,7 @@ def action_tool_completed(pane: str, payload: dict) -> None:
     file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
     if not file_path:
         return
-    session_id = payload.get("session_id") or get_option(pane, "@cc-session-id")
+    session_id = _resolve_session_id(pane, payload)
     if not session_id:
         return
     _append_touched_file(session_id, file_path)
@@ -572,9 +1003,14 @@ def _text_blocks(content) -> str:
     return ""
 
 
+def _is_main_assistant(row: dict) -> bool:
+    """True for a main-chain assistant row (an assistant turn, not a sidechain)."""
+    return row.get("type") == "assistant" and not row.get("isSidechain")
+
+
 def _assistant_text(row: dict) -> str:
     """Claude's prose from an assistant transcript row (sidechains excluded)."""
-    if row.get("type") != "assistant" or row.get("isSidechain"):
+    if not _is_main_assistant(row):
         return ""
     return _text_blocks((row.get("message") or {}).get("content"))
 
@@ -586,22 +1022,50 @@ def _user_prompt_text(row: dict) -> str:
     return _text_blocks((row.get("message") or {}).get("content"))
 
 
+def _cut_head(text: str, limit: int) -> str:
+    """Trim `text` to `limit` chars from the start, on a line/word boundary.
+
+    Avoids feeding the model a fragment cut mid-word (which it then parrots).
+    """
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    nl = cut.rfind("\n")
+    if nl > 0:
+        return cut[:nl]
+    sp = cut.rfind(" ")
+    return cut[:sp] if sp > 0 else cut
+
+
+def _cut_tail(text: str, limit: int) -> str:
+    """Keep the last `limit` chars of `text`, starting on a line/word boundary.
+
+    A raw `text[-limit:]` can begin mid-word ("…mpl|es of the topic"); we drop
+    that partial leading token so the model sees clean dialogue.
+    """
+    if len(text) <= limit:
+        return text
+    cut = text[-limit:]
+    nl = cut.find("\n")
+    if nl != -1:
+        return cut[nl + 1:]
+    sp = cut.find(" ")
+    return cut[sp + 1:] if sp != -1 else cut
+
+
 def _recent_dialogue(
-    transcript_path: str,
+    rows: list,
     recent_turns: int,
     max_chars: int = RENAME_DIALOGUE_MAX,
 ) -> str:
-    """Recent you/Claude dialogue from the transcript tail, for topic naming.
+    """Recent you/Claude dialogue from already-parsed transcript rows.
 
     Keeps the last `recent_turns` user prompts and every assistant prose reply
     after the earliest kept prompt, in order, as alternating `you:` / `claude:`
     lines. Assistant tool calls / file reads / thinking are excluded (see
     _assistant_text). Returns the most recent `max_chars` characters, or "" when
-    the transcript can't be read — callers then fall back to user-only context.
+    `rows` is empty — callers then fall back to user-only context.
     """
-    if not transcript_path:
-        return ""
-    rows, _ = _read_transcript_tail(transcript_path)
     if not rows:
         return ""
     user_idxs = [i for i, r in enumerate(rows) if _is_user_prompt(r)]
@@ -618,26 +1082,90 @@ def _recent_dialogue(
         text = _user_prompt_text(row) if is_user else _assistant_text(row)
         if text:
             lines.append(f"{'you' if is_user else 'claude'}: {text}")
-    return "\n".join(lines)[-max_chars:]
+    return _cut_tail("\n".join(lines), max_chars)
 
 
-def _analyze_reheat(transcript_path: str) -> tuple:
-    """Inspect the last turn's first API call.
+def _first_prompts(path: str, count: int) -> list:
+    """The first `count` user-prompt texts, read from the HEAD of the transcript.
+
+    Reads line by line from the start and stops as soon as `count` prompts are
+    found, so it stays cheap even on a huge transcript. Unlike the tail read used
+    elsewhere, this reaches the session's OPENING prompts — which state the goal —
+    even in a long session whose start is past the tail window. [] on any failure.
+    """
+    if not path or count <= 0:
+        return []
+    out = []
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if _is_user_prompt(row):
+                    text = _user_prompt_text(row)
+                    if text:
+                        out.append(text)
+                        if len(out) >= count:
+                            break
+    except OSError:
+        return []
+    return out
+
+
+def _rename_context(
+    rows: list,
+    path: str,
+    recent_turns: int,
+    first_turns: int,
+    max_chars: int = RENAME_DIALOGUE_MAX,
+) -> str:
+    """Dialogue for the namer: the opening prompts PLUS the most recent turns.
+
+    The first prompts state the actual goal; the recent turns (with Claude's
+    prose, via _recent_dialogue) show where the work is now. Anchoring on both
+    ends keeps the name on-topic instead of drifting to whatever the last turn
+    touched. The opening is read from the transcript head (_first_prompts) so it
+    survives long sessions whose start is past the tail window. When the opening
+    is already inside the recent window (short session) only the recent dialogue
+    is returned, so nothing is duplicated.
+    """
+    recent = _recent_dialogue(rows, recent_turns, max_chars)
+    heads = _first_prompts(path, first_turns)
+    if not heads:
+        return recent
+    if heads[0] and heads[0] in recent:
+        return recent  # short session — the opening is already in the recent tail
+    head = _cut_head("\n".join(f"you: {t}" for t in heads), max_chars // 2)
+    tail = _cut_tail(recent, max_chars - len(head) - 4) if recent else ""
+    return f"{head}\n…\n{tail}" if tail else head
+
+
+def _analyze_reheat(rows: list, truncated: bool) -> tuple:
+    """Inspect the last turn's first API call, from already-parsed transcript rows.
 
     Return (is_reheat, tokens_spent, read, create, inp) — the raw cache_read /
     cache_creation / input token counts of that first call are surfaced for the
     per-turn debug log.
 
-    A reheat = the turn's first assistant call re-created at least
-    REHEAT_MIN_TOKENS of context AND re-created more than it read from cache
-    (create > read) — i.e. the prompt cache was mostly cold and this turn paid
-    to rebuild it. The bulk of the ~1h cache expires while a small stable prefix
-    (tools + system, on its own longer-lived cache) can stay warm well past an
-    hour, so cache_read is rarely exactly 0 anymore; `create > read` catches
-    these partial reheats that the old read==0 test missed. It also ignores
-    mid-conversation content pastes (read stays high → create < read).
-    tokens_spent is the full non-cached input that turn paid for: fresh input +
-    re-cached context.
+    A reheat = the prompt cache went cold over an idle gap and this turn's first
+    assistant call paid to rebuild it. Signature: the warm context SHRANK — this
+    call's cache_read dropped well below what the PREVIOUS turn had cached
+    (prev_cached = that turn's last read+create) — AND at least REHEAT_MIN_TOKENS
+    were re-created. The bulk of the ~1h cache expires while a small stable prefix
+    (tools + system, on its own longer-lived cache) stays warm for hours, so a
+    partial reheat collapses read toward that prefix (e.g. 62k→16k) rather than to
+    0. Testing the DROP (read < prev_cached) — not create > read — is what tells an
+    idle reheat apart from a big mid-conversation content paste (a large skill or
+    file load): a paste leaves read at or above prev_cached and merely ADDS on top,
+    so its create can exceed read without any cache having expired. The old
+    create > read test false-flagged those whenever the pasted block was larger
+    than the already-cached context. tokens_spent is the full non-cached input that
+    turn paid for: fresh input + re-cached context.
 
     The first turn of a brand-new session is ALSO a big cold create (there is no
     cache yet), but that is an unavoidable cold start, not an idle-expiry reheat
@@ -646,9 +1174,6 @@ def _analyze_reheat(transcript_path: str) -> tuple:
     a long gap still flags (it has prior history); long sessions are unaffected
     (their previous turn sits in the tail).
     """
-    if not transcript_path:
-        return False, 0, 0, 0, 0
-    rows, truncated = _read_transcript_tail(transcript_path)
     if not rows:
         return False, 0, 0, 0, 0
     start = None
@@ -658,15 +1183,25 @@ def _analyze_reheat(transcript_path: str) -> tuple:
             break
     if start is None:
         return False, 0, 0, 0, 0
-    prior_call = any(
-        r.get("type") == "assistant"
-        and not r.get("isSidechain")
-        and (r.get("message") or {}).get("usage")
-        for r in rows[:start]
-    )
+    # Cached-context size at the end of the PREVIOUS turn: read+create of the last
+    # main-chain assistant call before this turn's prompt. A genuine reheat collapses
+    # this (the body cache expired); a mid-conversation content paste or a big skill /
+    # file load leaves it intact and simply adds on top.
+    prev_cached = 0
+    prior_call = False
+    for r in rows[:start]:
+        if not _is_main_assistant(r):
+            continue
+        usage = (r.get("message") or {}).get("usage") or {}
+        if not usage:
+            continue
+        prior_call = True
+        prev_cached = (usage.get("cache_read_input_tokens") or 0) + (
+            usage.get("cache_creation_input_tokens") or 0
+        )
     first_turn_of_session = not prior_call and not truncated
     for row in rows[start + 1:]:
-        if row.get("type") != "assistant" or row.get("isSidechain"):
+        if not _is_main_assistant(row):
             continue
         usage = (row.get("message") or {}).get("usage") or {}
         if not usage:
@@ -676,7 +1211,7 @@ def _analyze_reheat(transcript_path: str) -> tuple:
         inp = usage.get("input_tokens") or 0
         is_reheat = (
             create >= REHEAT_MIN_TOKENS
-            and create > read
+            and read < prev_cached - REHEAT_MIN_TOKENS
             and not first_turn_of_session
         )
         return is_reheat, create + inp, read, create, inp
@@ -685,18 +1220,14 @@ def _analyze_reheat(transcript_path: str) -> tuple:
 
 def _log_reheat(pane: str, payload: dict, tokens: int) -> None:
     """Append one reheat record to REHEAT_LOG for later review."""
-    try:
-        os.makedirs(TOUCHED_FILES_DIR, exist_ok=True)
-        ts = datetime.now().isoformat(timespec="seconds")
-        win = get_window_name(pane) or "?"
-        sid = payload.get("session_id") or get_option(pane, "@cc-session-id") or "?"
-        with open(REHEAT_LOG, "a", encoding="utf-8") as fh:
-            fh.write(
-                f"{ts}  reheat  tokens={tokens}  win={win}  "
-                f"pane={pane}  session={sid}\n"
-            )
-    except OSError as e:
-        log(f"reheat-log: {type(e).__name__}: {e}")
+    ts = datetime.now().isoformat(timespec="seconds")
+    win = get_window_name(pane) or "?"
+    sid = _resolve_session_id(pane, payload, "?")
+    _append_line(
+        REHEAT_LOG,
+        f"{ts}  reheat  tokens={tokens}  win={win}  pane={pane}  session={sid}\n",
+        "reheat-log",
+    )
 
 
 def _log_reheat_debug(
@@ -712,21 +1243,18 @@ def _log_reheat_debug(
     """
     if not REHEAT_DEBUG:
         return
-    try:
-        os.makedirs(TOUCHED_FILES_DIR, exist_ok=True)
-        ts = datetime.now().isoformat(timespec="seconds")
-        idle = get_option(pane, "@cc-prev-idle") or "?"
-        win = get_window_name(pane) or "?"
-        sid = payload.get("session_id") or get_option(pane, "@cc-session-id") or "?"
-        with open(REHEAT_DEBUG_LOG, "a", encoding="utf-8") as fh:
-            fh.write(
-                f"{ts}  idle={idle}s  read={read}  create={create}  "
-                f"input={inp}  tokens={tokens}  "
-                f"reheat={'yes' if is_reheat else 'no'}  "
-                f"win={win}  session={sid}\n"
-            )
-    except OSError as e:
-        log(f"reheat-debug: {type(e).__name__}: {e}")
+    ts = datetime.now().isoformat(timespec="seconds")
+    idle = get_option(pane, "@cc-prev-idle") or "?"
+    win = get_window_name(pane) or "?"
+    sid = _resolve_session_id(pane, payload, "?")
+    _append_line(
+        REHEAT_DEBUG_LOG,
+        f"{ts}  idle={idle}s  read={read}  create={create}  "
+        f"input={inp}  tokens={tokens}  "
+        f"reheat={'yes' if is_reheat else 'no'}  "
+        f"win={win}  session={sid}\n",
+        "reheat-debug",
+    )
 
 
 def action_done(pane: str, payload: dict) -> None:
@@ -736,18 +1264,34 @@ def action_done(pane: str, payload: dict) -> None:
         return  # stale hook from prior session
     if not get_option(pane, "@cc-last-prompt-ts"):
         return  # no prompt seen in this session yet, defensive
+    # A turn that set no @cc-turn-had-prompt is a system re-invocation, not a
+    # user turn — a background task (Workflow, background Agent or Bash)
+    # finishing and reporting back. Empirically a Workflow completion fires no
+    # prompt-submit at all, while a background Bash/Agent completion fires one
+    # with a <task-notification> payload — which action_prompt_submit filters
+    # out, leaving had_prompt unset either way. Treat that Stop as one
+    # background task retiring from the background-work marker. User turns (had_prompt
+    # set) leave the count alone, so the marker survives the launching turn and
+    # any prompts sent while the run is still in flight.
+    had_prompt = get_option(pane, "@cc-turn-had-prompt")
+    unset_option(pane, "@cc-turn-had-prompt")
+    if not had_prompt:
+        _bump_workflow(pane, -1)
     action_set_state(pane, "done")
     # Turn just ended → the cache was last read now; the idle clock starts here.
     _touch_cache_ts(pane)
-    # The answer is now in the transcript — refine the window name from this and
-    # the preceding exchange (early turns only; see maybe_rename_on_answer).
-    maybe_rename_on_answer(pane, payload)
+    # Parse the transcript tail ONCE and share it: the answer-aware rename and the
+    # reheat analysis both read the same just-finished turn at the end of the file.
+    # (Reading it separately doubled the disk read + JSON parse on every Stop.)
+    transcript = payload.get("transcript_path", "") or ""
+    rows, truncated = _read_transcript_tail(transcript)
+    # The answer is now in the transcript — refine the window name from the
+    # opening goal plus this exchange (early turns only; see maybe_rename_on_answer).
+    maybe_rename_on_answer(pane, rows, transcript)
     # Did this turn reheat a cold prompt cache? Read the real token cost from the
     # transcript and flag it (status marker + log) so an expensive cache-miss
     # turn is visible after the fact.
-    is_reheat, tokens, read, create, inp = _analyze_reheat(
-        payload.get("transcript_path", "")
-    )
+    is_reheat, tokens, read, create, inp = _analyze_reheat(rows, truncated)
     _log_reheat_debug(pane, payload, read, create, inp, tokens, is_reheat)
     if is_reheat:
         set_option(pane, "@cc-reheat", _human_tokens(tokens))
@@ -761,6 +1305,8 @@ ACTIONS = {
     "waiting": action_waiting,
     "done": action_done,
     "tool-completed": action_tool_completed,
+    "reset": action_reset,
+    "rename": action_rename,
 }
 
 
@@ -785,7 +1331,18 @@ def main() -> int:
     if not pane:
         return 0
     payload = read_stdin_json()
-    log(f"action={action} pane={pane} payload_keys={list(payload.keys())}")
+    # Stash the transcript path on the pane on every hook that carries one, so the
+    # manual rename hotkey (prefix+r → "rename", which has no stdin payload) can
+    # find the current session's transcript to summarise.
+    transcript = payload.get("transcript_path")
+    if transcript:
+        set_option(pane, "@cc-transcript", transcript)
+    log(
+        f"action={action} pane={pane} "
+        f"tool={payload.get('tool_name')} "
+        f"event={payload.get('hook_event_name')} "
+        f"payload_keys={list(payload.keys())}"
+    )
     try:
         ACTIONS[action](pane, payload)
     except Exception as e:
