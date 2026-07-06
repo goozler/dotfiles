@@ -18,20 +18,20 @@
 # cache, not the 5-min default.
 #
 # To keep tabs quiet while warm, the countdown stays HIDDEN until the cache is
-# within CC_CACHE_SHOW_UNDER seconds of expiry (default 600 = last 10 min). Once
-# the cache goes COLD, a persistent red "● cold Nm" marker shows how long ago it
+# within CC_CACHE_SHOW_UNDER seconds of expiry (default 1800 = last 30 min). Once
+# the cache goes COLD, a persistent red "● Nm" marker shows how long ago it
 # expired — so a blank tab unambiguously means "warm", and you know BEFORE
 # sending that the next message will reheat the whole context (rather than after,
 # the way the @cc-reheat token count only appears once the turn completes).
 #
-# Tunables: CC_CACHE_TTL (default 3600), CC_CACHE_SHOW_UNDER (default 600).
+# Tunables: CC_CACHE_TTL (default 3600), CC_CACHE_SHOW_UNDER (default 1800).
 
 ts="$1"
 [ -z "$ts" ] && exit 0
 case "$ts" in *[!0-9]*) exit 0 ;; esac   # non-numeric guard
 
 ttl="${CC_CACHE_TTL:-3600}"
-show_under="${CC_CACHE_SHOW_UNDER:-600}"
+show_under="${CC_CACHE_SHOW_UNDER:-1800}"
 now=$(date +%s)
 remaining=$(( ts + ttl - now ))
 
@@ -40,12 +40,10 @@ remaining=$(( ts + ttl - now ))
 # sending, that the next message will reheat the whole context.
 if [ "$remaining" -le 0 ]; then
     elapsed=$(( -remaining ))
-    if [ "$elapsed" -lt 60 ]; then
-        ago="cold"
-    elif [ "$elapsed" -lt 3600 ]; then
-        ago="cold $(( elapsed / 60 ))m"
+    if [ "$elapsed" -lt 3600 ]; then
+        ago="$(( elapsed / 60 ))m"
     else
-        ago=$(printf 'cold %dh%02dm' $(( elapsed / 3600 )) $(( elapsed % 3600 / 60 )))
+        ago=$(printf '%dh%02dm' $(( elapsed / 3600 )) $(( elapsed % 3600 / 60 )))
     fi
     printf '#[fg=#dc322f]● %s#[default] ' "$ago"
     exit 0
@@ -55,8 +53,10 @@ fi
 
 if [ "$remaining" -le 120 ]; then
     color='#dc322f'      # solarized red — about to expire (<2 min)
-else
+elif [ "$remaining" -le 600 ]; then
     color='#b58900'      # solarized yellow — within the last 10 min
+else
+    color='#859900'      # solarized green — 10–30 min left (first appears here)
 fi
 
 # Format the visible window as M:SS (e.g. 9:58), or NNs under a minute.
