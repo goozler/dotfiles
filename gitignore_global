@@ -46,3 +46,4 @@ HANDOFF.md
 *.log
 _bmad/
 .worktrees/
+__pycache__/
