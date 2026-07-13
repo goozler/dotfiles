@@ -157,6 +157,8 @@ if type nvim > /dev/null 2>&1; then
   alias v='_gen_fzf_default_opts; nvim'
 fi
 
+alias cursor='/usr/local/bin/cursor --classic'
+
 # exa
 # general use
 alias ls='eza'                                                          # ls
