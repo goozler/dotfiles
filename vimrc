@@ -286,6 +286,8 @@ nmap <leader>d :Gdiff<cr>
 " <leader>gV : close diffview
 " <leader>gh : file history for the current file (like `git log -p` browser)
 " <leader>gH : file history for the whole repo
+" <leader>gb : blame the current line, open that commit as a full diffview
+" In the history panel: O opens the whole commit under the cursor.
 if has('nvim')
 lua << EOF
 local ok, diffview = pcall(require, 'diffview')
@@ -295,6 +297,14 @@ if ok then
     view = {
       merge_tool = { layout = 'diff3_mixed' },
     },
+    keymaps = {
+      file_history_panel = {
+        -- O : open the whole commit under the cursor (all files), not just
+        -- this file's slice. Replaces the un-pressable default <C-A-d>.
+        { "n", "O", require('diffview.actions').open_in_diffview,
+          { desc = "Open the whole commit in a diffview" } },
+      },
+    },
   })
 end
 EOF
@@ -302,6 +312,30 @@ EOF
   nnoremap <silent> <leader>gV :DiffviewClose<CR>
   nnoremap <silent> <leader>gh :DiffviewFileHistory %<CR>
   nnoremap <silent> <leader>gH :DiffviewFileHistory<CR>
+
+  " Blame the current line → open the commit that last touched it as a full
+  " diffview (all files in that commit). `<hash>^!` is git for "just this commit".
+  function! s:BlameLineCommit() abort
+    let l:file = expand('%:p')
+    if empty(l:file) || !filereadable(l:file)
+      echo 'No file to blame' | return
+    endif
+    let l:out = systemlist('git -C ' . shellescape(expand('%:p:h'))
+          \ . ' blame -L ' . line('.') . ',' . line('.')
+          \ . ' --porcelain -- ' . shellescape(l:file))
+    if v:shell_error != 0 || empty(l:out)
+      echo 'git blame failed' | return
+    endif
+    let l:hash = matchstr(l:out[0], '^\x\+')
+    if empty(l:hash)
+      echo 'Could not parse commit hash' | return
+    elseif l:hash =~# '^0\+$'
+      echo 'Line is uncommitted (working tree)' | return
+    endif
+    execute 'DiffviewOpen ' . l:hash . '^!'
+  endfunction
+  command! BlameLineCommit call <SID>BlameLineCommit()
+  nnoremap <silent> <leader>gb :BlameLineCommit<CR>
 endif
 
 " :ClaudeChanged — load every file Claude has changed (git working tree ∪
