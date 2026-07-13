@@ -79,6 +79,10 @@ export PATH="/usr/local/bin:"\
 
 # export MANPATH="/usr/local/man:$MANPATH"
 
+# Extra completion dirs must join fpath BEFORE oh-my-zsh runs compinit, so it
+# picks them up in its single pass (avoids a second, redundant compinit later).
+fpath=(/usr/local/share/zsh-completions $HOME/.docker/completions $fpath)
+
 source $ZSH/oh-my-zsh.sh
 
 # You may need to manually set your language environment
@@ -96,8 +100,6 @@ fi
 
 # ssh
 # export SSH_KEY_PATH="~/.ssh/dsa_id"
-
-fpath=(/usr/local/share/zsh-completions $fpath)
 
 # FZF
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
