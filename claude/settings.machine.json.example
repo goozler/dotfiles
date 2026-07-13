@@ -1,0 +1,15 @@
+{
+  "__doc__": "Copy to ~/.claude/settings.machine.json for per-machine overrides. install-claude.sh combines its permission lists and hooks with claude/settings.json; other keys come from the base.",
+  "permissions": {
+    "allow": [
+      "Bash(git -C /absolute/path/to/a/repo diff --stat)",
+      "Read(//absolute/path/to/a/tree/**)"
+    ],
+    "additionalDirectories": [
+      "/absolute/path/to/an/extra/dir"
+    ]
+  },
+  "enabledPlugins": {
+    "some-plugin@some-marketplace": false
+  }
+}

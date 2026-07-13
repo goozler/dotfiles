@@ -1,0 +1,11 @@
+# Local, machine-specific files (not tracked).
+claude/settings.machine.json
+claude/settings.local.json
+claude/**/.credentials.json
+.credentials.json
+
+# Local config imports (kept out of the tree).
+configs/
+
+# Backups created by the install scripts.
+*.old

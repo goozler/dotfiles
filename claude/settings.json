@@ -1,0 +1,234 @@
+{
+  "skillListingBudgetFraction": 0.03,
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "0",
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "0",
+    "CLAUDE_CODE_NO_FLICKER": "0"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(ls:*)",
+      "Bash(gh pr view:*)",
+      "Bash(grep:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr list:*)",
+      "Bash(pgrep:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)",
+      "Bash(git add:*)",
+      "Bash(git log:*)",
+      "Bash(rtk:*)",
+      "Bash(node:*)",
+      "Bash(pnpm:*)",
+      "Bash(mise exec:*)",
+      "mcp__plugin_context7_context7__query-docs",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "Skill(codex)"
+    ],
+    "defaultMode": "auto"
+  },
+  "deniedMcpServers": [
+    {
+      "serverName": "claude_ai_Google_Drive"
+    },
+    {
+      "serverName": "Google Drive"
+    }
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/plugins/claudecode-sounds/hooks/play_sound.py complete",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/hooks/tmux-claude-hooks.py done",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/plugins/claudecode-sounds/hooks/play_sound.py question",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "idle_prompt|elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/hooks/tmux-claude-hooks.py waiting",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/plugins/claudecode-sounds/hooks/play_sound.py permission",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/hooks/tmux-claude-hooks.py waiting",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/goozler/.claude/hooks/rtk-with-rg.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/goozler/.claude/hooks/deny-builtin-grep.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/hooks/tmux-claude-hooks.py prompt-submit",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/time-since-last-message.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/hooks/tmux-claude-hooks.py session-start",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/hooks/tmux-claude-hooks.py session-end",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/plugins/claudecode-sounds/hooks/check_tool_error.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 /Users/goozler/.claude/hooks/tmux-claude-hooks.py tool-completed",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "fresh"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/scripts/context-bar.sh"
+  },
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "andrej-karpathy-skills@karpathy-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
+    },
+    "claude-code-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-code"
+      }
+    }
+  },
+  "effortLevel": "high",
+  "advisorModel": "fable",
+  "autoUpdatesChannel": "stable",
+  "minimumVersion": "2.1.202",
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
+  "autoDreamEnabled": true,
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
+  "editorMode": "normal",
+  "verbose": false,
+  "preferredNotifChannel": "iterm2",
+  "switchModelsOnFlag": false,
+  "fileCheckpointingEnabled": true,
+  "teammateMode": "auto",
+  "remoteControlAtStartup": false,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "useAutoModeDuringPlan": true,
+  "voiceEnabled": true
+}
