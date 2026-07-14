@@ -293,6 +293,14 @@ lua << EOF
 local ok, diffview = pcall(require, 'diffview')
 if ok then
   diffview.setup({
+    -- No nvim-web-devicons / Nerd Font installed → devicons render as `?`.
+    -- Disable icons and use font-safe fold markers (JetBrains Mono has these).
+    use_icons = false,
+    signs = {
+      fold_closed = "▸",
+      fold_open = "▾",
+      done = "✓",
+    },
     enhanced_diff_hl = true,
     view = {
       merge_tool = { layout = 'diff3_mixed' },
@@ -308,7 +316,10 @@ if ok then
   })
 end
 EOF
-  nnoremap <silent> <leader>gv :DiffviewOpen<CR>
+  " Resolve the repo from the *current file's* directory (git -C), not Neovim's
+  " cwd — so it targets the buffer's repo even when nvim was launched elsewhere
+  " (e.g. from a Claude session in a different repo). Mirrors why <leader>gH works.
+  nnoremap <silent> <leader>gv :execute 'DiffviewOpen -C' . fnameescape(expand('%:p:h'))<CR>
   nnoremap <silent> <leader>gV :DiffviewClose<CR>
   nnoremap <silent> <leader>gh :DiffviewFileHistory %<CR>
   nnoremap <silent> <leader>gH :DiffviewFileHistory<CR>

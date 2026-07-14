@@ -219,3 +219,21 @@ eval "$(~/.local/bin/mise activate zsh)"
 
 chpwd_functions+=(_project_auto_source)
 _project_auto_source
+
+# --- Codex pager guard ---------------------------------------------------
+# Codex exports PAGER/GIT_PAGER/GH_PAGER=cat so git/gh never block on `less`.
+# If the tmux server is first started from inside a Codex session, tmux's
+# GLOBAL environment inherits those at birth and every new pane loses paging
+# (e.g. `git log` dumps the whole history instead of paging through delta).
+# GIT_PAGER always outranks core.pager, so interactive shells must strip it.
+# Non-interactive shells (how Codex runs commands) are left untouched on purpose.
+if [[ -o interactive ]]; then
+  for _v in PAGER GIT_PAGER GH_PAGER; do
+    if [[ "${(P)_v}" == "cat" ]]; then
+      unset "$_v"
+      [[ -n "$TMUX" ]] && tmux set-environment -gu "$_v" 2>/dev/null
+    fi
+  done
+  unset _v
+fi
+# -------------------------------------------------------------------------
