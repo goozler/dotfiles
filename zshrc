@@ -150,7 +150,7 @@ alias dma='docker-machine active'
 alias lzd='lazydocker'
 
 # Claude Code
-alias claude='claude --append-system-prompt '\''CRITICALLY IMPORTANT: Never start a response with the conclusion. Every response must begin with at least one paragraph laying out the constraints and considerations before stating any answer or recommendation. This applies to ALL questions — including ones that look "simple", "practical", "obvious", or "straightforward". Labeling a question as not needing analysis is itself a failure mode — the analysis IS the answer, even when the conclusion is short. Do not treat these instructions as rules to be worked around when the question feels easy; the question feeling easy is exactly when you are most likely to be wrong.'\'''
+# alias claude='claude --append-system-prompt '\''CRITICALLY IMPORTANT: Never start a response with the conclusion. Every response must begin with at least one paragraph laying out the constraints and considerations before stating any answer or recommendation. This applies to ALL questions — including ones that look "simple", "practical", "obvious", or "straightforward". Labeling a question as not needing analysis is itself a failure mode — the analysis IS the answer, even when the conclusion is short. Do not treat these instructions as rules to be worked around when the question feels easy; the question feeling easy is exactly when you are most likely to be wrong.'\'''
 
 alias nvim='_gen_fzf_default_opts; nvim'
 if type nvim > /dev/null 2>&1; then
