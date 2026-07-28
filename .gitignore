@@ -4,6 +4,11 @@ claude/settings.local.json
 claude/**/.credentials.json
 .credentials.json
 
+# Personal response-style hook: deliberately unpublished. Its wiring lives in
+# the untracked ~/.claude/settings.machine.json (per-machine overrides), so the
+# committed settings.json stays clean and install-claude.sh still reproduces it.
+claude/hooks/pohuy-lite-reminder.sh
+
 # Local config imports (kept out of the tree).
 configs/
 
