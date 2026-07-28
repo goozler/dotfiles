@@ -1,21 +1,18 @@
 #!/usr/bin/env bash
 # Print files Claude has changed for the current tmux pane's session.
 #
-# Union of:
-#   1. git working tree (modified vs HEAD + untracked, like the original
-#      :ClaudeChanged) — covers uncommitted edits.
-#   2. ~/.claude/state/session-<sid>-touched.txt — written by
-#      tmux-attention.py on PostToolUse. Covers files Claude edited that
-#      have since been committed, which git status alone would miss.
+# Source: ~/.claude/state/session-<sid>-touched.txt — written by
+# tmux-claude-hooks.py on PostToolUse for Edit/Write/MultiEdit/NotebookEdit
+# only, so the list is exactly what Claude edited this session (survives
+# commits, never picks up unrelated dirty/untracked files from the repo).
 #
-# Output: one path per line, deduped, only files that exist on disk. The
-# per-session edit log is the authoritative record of what Claude changed this
-# session, so logged files are surfaced regardless of folder — a session that
-# legitimately edits across repos (e.g. a fix in repo A plus a test in repo B)
-# shows all of them. The git portion is repo-local by nature.
+# Output: one path per line, deduped, only files that exist on disk. Logged
+# files are surfaced regardless of folder — a session that legitimately edits
+# across repos (e.g. a fix in repo A plus a test in repo B) shows all of them.
 #
 # Session id lookup: tmux user-option @cc-session-id on the current window,
-# set by tmux-attention.py on UserPromptSubmit. Returns nothing if not set.
+# set by tmux-claude-hooks.py on UserPromptSubmit. Prints nothing when the
+# window has no Claude session (or it hasn't edited anything yet).
 
 set -u
 STATE_DIR="${HOME}/.claude/state"
@@ -26,8 +23,6 @@ if [ -n "${TMUX:-}" ]; then
 fi
 
 {
-    git diff --name-only HEAD 2>/dev/null || true
-    git ls-files --others --exclude-standard 2>/dev/null || true
     if [ -n "$sid" ] && [ -f "${STATE_DIR}/session-${sid}-touched.txt" ]; then
         cat "${STATE_DIR}/session-${sid}-touched.txt"
     fi
