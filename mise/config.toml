@@ -1,0 +1,28 @@
+# Global mise config — migrated from asdf (was ~/.tool-versions).
+# install.sh symlinks this to ~/.config/mise/config.toml.
+# Per-project versions live in each project's own mise.toml/.tool-versions and
+# override these. New runtimes are seeded from the default-python-packages /
+# default-npm-packages / default-gems files (read natively by mise).
+
+[tools]
+bun = "latest"
+codex = "0.144.6"
+elixir = "1.18.1-otp-27"
+erlang = "27.2"
+go = "1.25.5"
+maven = "3"
+node = "24"
+pnpm = "latest"
+python = "3.14.6"
+ruby = "3.1.1"
+rust = "1.86.0"
+usage = "latest"
+uv = "latest"
+vault = "1.9.3"
+yarn = "latest"
+
+[settings]
+verbose = false
+# mise equivalent of asdf's `legacy_version_file = yes` (old asdfrc), scoped to
+# node: read .node-version / .nvmrc when present.
+idiomatic_version_file_enable_tools = ["node"]

@@ -2,7 +2,6 @@
 cd `dirname "$0"`
 
 FILES=(\
- "asdfrc"\
  "default-gems"\
  "default-npm-packages"\
  "default-python-packages"\
@@ -10,7 +9,6 @@ FILES=(\
  "gitignore_global"\
  "rgignore"\
  "tmux.conf"\
- "tool-versions"\
  "vimrc"\
  "zshenv"\
  "zshrc"\
@@ -22,6 +20,14 @@ for file in "${FILES[@]}"; do
   fi
   ln -sfv $PWD/$file $HOME/.$file
 done
+
+# mise global config lives at ~/.config/mise/config.toml (not a flat ~/.<name>),
+# so it gets its own symlink outside the FILES loop.
+mkdir -p "$HOME/.config/mise"
+if [ -f "$HOME/.config/mise/config.toml" ] && [ ! -L "$HOME/.config/mise/config.toml" ]; then
+  mv -v "$HOME/.config/mise/config.toml" "$HOME/.config/mise/config.toml.old"
+fi
+ln -sfv "$PWD/mise/config.toml" "$HOME/.config/mise/config.toml"
 
 ./install-tmux.sh
 ./install-oh-my-zsh.sh

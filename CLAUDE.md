@@ -19,7 +19,7 @@ Personal macOS dotfiles (zsh, neovim, tmux, git) installed via symlinks. Editing
 
 There are three layering patterns, and changes go in different places depending on the target:
 
-1. **Top-level dotfiles (`zshrc`, `vimrc`, `tmux.conf`, `gitconfig`, `zshenv`, `gitignore_global`, `tool-versions`, `asdfrc`, `default-*`, `rgignore`)** — listed in `install.sh`'s `FILES` array, symlinked to `~/.<name>`. Add new ones by appending to that array.
+1. **Top-level dotfiles (`zshrc`, `vimrc`, `tmux.conf`, `gitconfig`, `zshenv`, `gitignore_global`, `default-*`, `rgignore`)** — listed in `install.sh`'s `FILES` array, symlinked to `~/.<name>`. Add new ones by appending to that array. **Exception:** the mise global config (`mise/config.toml`) is symlinked to `~/.config/mise/config.toml` by a dedicated block after the loop, since it isn't a flat `~/.<name>` target. Tool versions are managed by mise (migrated from asdf; the old `tool-versions`/`asdfrc` are gone). `default-python-packages`/`default-npm-packages`/`default-gems` are still read natively by mise to seed newly-installed runtimes.
 2. **oh-my-zsh custom modules (`oh_my_zsh/{docker,fzf,helpers,history,theme,tmux,vim}.zsh`)** — symlinked into `~/.oh-my-zsh/custom/` so oh-my-zsh auto-sources them. The list lives in `install-oh-my-zsh.sh`'s `FILES` array; add a module by creating the file AND appending its name.
 3. **Plugin manifests** — `vim/bundle.d/plugins.vim` (vim-plug), `tmux.conf` (`@plugin` lines for tpm), and the oh-my-zsh `plugins=(...)` array in `zshrc`. Each is read by its respective plugin manager; changing them requires running the manager's install command (`:PlugInstall`, `prefix + I`, restart shell).
 
