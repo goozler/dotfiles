@@ -14,8 +14,11 @@ let mapleader      = ' '
 let maplocalleader = ' '
 
 
-" let g:python_host_prog=$HOME.'/.local/share/mise/installs/python/3.13.2/bin/python'
-let g:python3_host_prog=$HOME.'/.local/share/mise/installs/python/3.13.2/bin/python'
+" let g:python_host_prog=$HOME.'/.local/share/mise/installs/python/3.14.6/bin/python'
+let g:python3_host_prog=$HOME.'/.local/share/mise/installs/python/3.14.6/bin/python'
+
+" Disable the optional Perl provider (unused; silences :checkhealth warning)
+let g:loaded_perl_provider = 0
 
 " Faster redrawing
 set lazyredraw
@@ -284,8 +287,9 @@ nmap <leader>d :Gdiff<cr>
 " Diffview — PR-style file list + side-by-side diff browser.
 " <leader>gv : open current diff (working tree vs HEAD) in diffview
 " <leader>gV : close diffview
-" <leader>gh : file history for the current file (like `git log -p` browser)
-" <leader>gH : file history for the whole repo
+" <leader>gh : file history for the current file (like `git log -p` browser);
+"              with no file open, falls back to repo history capped at 20
+" <leader>gH : file history for the whole repo (capped at 20 via log_options)
 " <leader>gb : blame the current line, open that commit as a full diffview
 " In the history panel: O opens the whole commit under the cursor.
 if has('nvim')
@@ -305,6 +309,16 @@ if ok then
     view = {
       merge_tool = { layout = 'diff3_mixed' },
     },
+    file_history_panel = {
+      log_options = {
+        git = {
+          -- Repo-wide history (no file arg) is unbounded by default and hangs
+          -- on large repos — cap it. Single-file history stays unlimited.
+          -- Raise/clear interactively with L in the history panel.
+          multi_file = { max_count = 20 },
+        },
+      },
+    },
     keymaps = {
       file_history_panel = {
         -- O : open the whole commit under the cursor (all files), not just
@@ -321,7 +335,9 @@ EOF
   " (e.g. from a Claude session in a different repo). Mirrors why <leader>gH works.
   nnoremap <silent> <leader>gv :execute 'DiffviewOpen -C' . fnameescape(expand('%:p:h'))<CR>
   nnoremap <silent> <leader>gV :DiffviewClose<CR>
-  nnoremap <silent> <leader>gh :DiffviewFileHistory %<CR>
+  nnoremap <silent><expr> <leader>gh empty(expand('%'))
+        \ ? ":DiffviewFileHistory --max-count=20\<CR>"
+        \ : ":DiffviewFileHistory %\<CR>"
   nnoremap <silent> <leader>gH :DiffviewFileHistory<CR>
 
   " Blame the current line → open the commit that last touched it as a full
