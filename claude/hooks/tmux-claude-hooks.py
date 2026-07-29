@@ -389,25 +389,6 @@ def _bg_remove(pane: str, ids: set[str]) -> int:
     return removed
 
 
-def _bg_remove_oldest(pane: str, kinds: set[str]) -> int:
-    """Retire the oldest in-flight task of one of `kinds`. Fallback path only.
-
-    Used for tools whose completion produces no notification we can key on
-    (Workflow re-invokes Claude with no prompt-submit at all).
-    """
-    candidates = [e for e in _bg_entries(pane) if e[1] in kinds]
-    if not candidates:
-        return 0
-    key = min(candidates, key=lambda e: e[4])[0]
-    try:
-        os.unlink(os.path.join(_bg_dir(pane), key))
-    except OSError:
-        return 0
-    log(f"bg remove oldest {key} (kinds={sorted(kinds)})")
-    _bg_refresh(pane)
-    return 1
-
-
 def _bg_clear(pane: str) -> None:
     """Drop all background-task state for this pane."""
     shutil.rmtree(_bg_dir(pane), ignore_errors=True)
@@ -927,12 +908,12 @@ def action_rename(pane: str, _payload: dict) -> None:
 def _is_system_notification(prompt: str) -> bool:
     """True when a UserPromptSubmit payload is a harness notification, not a user.
 
-    A background Bash/Agent task completing re-invokes Claude with a synthetic
-    prompt wrapped in <task-notification> (observed empirically; Workflow
-    completions fire no prompt-submit at all). Such a turn must NOT count as
-    user-initiated: @cc-turn-had-prompt stays unset, the named tasks are retired
-    from the background-work marker (see action_prompt_submit), and it must not
-    advance the prompt counter or trigger a rename.
+    A background task completing re-invokes Claude with a synthetic prompt
+    wrapped in <task-notification> (observed empirically for Bash/Agent and
+    Workflow completions alike). Such a turn must NOT count as user-initiated:
+    the named tasks are retired from the background-work marker (see
+    action_prompt_submit), and it must not advance the prompt counter or
+    trigger a rename.
 
     Matched anywhere in the prompt head rather than with a strict startswith:
     the harness may prepend its own "[SYSTEM NOTIFICATION - NOT USER INPUT]"
@@ -960,15 +941,12 @@ def action_prompt_submit(pane: str, payload: dict) -> None:
 
     prompt = payload.get("prompt", "") or ""
     # A harness notification (background task completing) is a system
-    # re-invocation, not a user turn: retire the tasks it names, leave
-    # @cc-turn-had-prompt unset, and don't let it advance the prompt counter or
-    # trigger a rename.
+    # re-invocation, not a user turn: retire the tasks it names, and don't let
+    # it advance the prompt counter or trigger a rename.
     if _is_system_notification(prompt):
         ids = _notification_ids(prompt)
-        if ids and _bg_remove(pane, ids):
-            # Tell action_done a notification already retired something, so its
-            # Workflow fallback can't double-retire on this same Stop.
-            set_option(pane, "@cc-turn-notified", "1")
+        if ids:
+            _bg_remove(pane, ids)
         # Severity-merged, NOT forced: a permission prompt or AskUserQuestion may
         # still be on screen, and a background task reporting back must not
         # repaint the tab as "working" and drop the pending question — forcing it
@@ -982,11 +960,6 @@ def action_prompt_submit(pane: str, payload: dict) -> None:
     set_option(pane, "@cc-status", "working")
     unset_option(pane, "@cc-waiting-tool")
     _bg_refresh(pane)
-    # Mark this turn as user-initiated. The Stop hook reads it to tell a real
-    # prompt turn apart from a system re-invocation (a background Workflow
-    # reporting back fires no prompt-submit at all; a background Bash/Agent
-    # completion fires one, filtered above) — see action_done's bookkeeping.
-    set_option(pane, "@cc-turn-had-prompt", "1")
 
     # Per-window prompt counter — drives the instant 1st-prompt rename here and
     # the answer-aware renames on the Stop hook.
@@ -1014,8 +987,6 @@ def action_session_start(pane: str, payload: dict) -> None:
     unset_option(pane, "@cc-reheat")
     unset_option(pane, "@cc-cache-ts")
     _bg_clear(pane)
-    unset_option(pane, "@cc-turn-had-prompt")
-    unset_option(pane, "@cc-turn-notified")
     # Reset the per-session prompt counter; keep @cc-auto-name so a new session
     # in the same window can update *our* prior auto-name but never clobber a
     # manual one.
@@ -1029,8 +1000,6 @@ def action_session_start(pane: str, payload: dict) -> None:
 def action_session_end(pane: str, _payload: dict) -> None:
     unset_option(pane, "@cc-status")
     _bg_clear(pane)
-    unset_option(pane, "@cc-turn-had-prompt")
-    unset_option(pane, "@cc-turn-notified")
     unset_option(pane, "@cc-waiting-tool")
     # Clear the cache markers too — without this the countdown timer
     # (@cc-cache-ts) keeps running and the reheat/cold-cache marker
@@ -1054,8 +1023,6 @@ def action_reset(pane: str, _payload: dict) -> None:
     """
     unset_option(pane, "@cc-status")
     _bg_clear(pane)
-    unset_option(pane, "@cc-turn-had-prompt")
-    unset_option(pane, "@cc-turn-notified")
     unset_option(pane, "@cc-waiting-tool")
     # Full clear: also drop the cache markers, so a manual reset recovers a
     # window left with a stale countdown timer (@cc-cache-ts) or cold-cache
@@ -1249,20 +1216,35 @@ def _row_epoch(row: dict) -> float:
 def _notification_blob(row: dict) -> str:
     """The <task-notification> text this row records as JUST HAVING HAPPENED, or "".
 
-    Exactly one shape qualifies: a `queue-operation` whose operation is `enqueue`.
-    The harness enqueues the notification the moment the task ends, so the row's
-    timestamp is the completion itself — which is the only thing the caller's
-    "evidence must be newer than the marker" test can be reasoned about.
+    Exactly one shape qualifies: a `queue-operation` whose operation is `enqueue`
+    AND whose content STARTS WITH the notification tag. The harness enqueues the
+    notification the moment the task ends, so the row's timestamp is the
+    completion itself — which is the only thing the caller's "evidence must be
+    newer than the marker" test can be reasoned about. But `enqueue` is not a
+    harness-only carrier: a user-typed queued prompt is also recorded as an
+    `enqueue`, dated when it was TYPED, not when anything finished — and if that
+    prompt happens to quote notification text (e.g. pasting a block out of
+    /tmp/cc-tmux-claude-hooks.log while debugging this very hook, routine for
+    this repo's owner) it would otherwise be indistinguishable from the real
+    thing. Measured over every transcript on this machine: 785 `enqueue` rows,
+    596 harness-authored and 189 user-typed; all 596 harness rows start with
+    `<task-notification>` and zero real rows contain the tag without starting
+    with it, so the prefix is a clean discriminator on observed data. It is
+    sufficient (no end-bound needed) because ids and status always precede any
+    `<result>` body in harness-authored content — see _finished_task_evidence's
+    per-block split.
 
     Every other carrier of the same text is dated by when it was HANDLED, not when
-    the task finished, and each would break that test:
+    the task finished, and each would break the "newer than the marker" test:
       - `queue-operation`/`remove` is the moment the entry was dropped from the
         queue, arbitrarily later;
       - an `attachment` of type queued_command is the moment it was handed to the
         model, likewise later;
       - a tool_result carries notification text whenever a transcript or
         /tmp/cc-tmux-claude-hooks.log is read — which is how this script gets
-        debugged — dated now.
+        debugged — dated now;
+      - a user-typed queued prompt that merely quotes notification text (see
+        above) is dated when it was typed, not when anything finished.
     Any of those late datings can outrank a resume that happened after the
     completion and retire a marker whose run is live — see
     _bg_retire_from_transcript for why one marker outlives many runs. A TaskOutput
@@ -1271,9 +1253,11 @@ def _notification_blob(row: dict) -> str:
     _task_output_headers.
     """
     if row.get("type") != "queue-operation" or row.get("operation") != "enqueue":
-        return []
+        return ""
     content = row.get("content")
-    return content if isinstance(content, str) else ""
+    if not isinstance(content, str) or not content.startswith("<task-notification>"):
+        return ""
+    return content
 
 
 def _task_output_headers(row: dict) -> list[str]:
@@ -1364,14 +1348,11 @@ def _finished_task_evidence(rows: list) -> dict[str, float]:
     return evidence
 
 
-def _bg_retire_from_transcript(pane: str, rows: list) -> set[str]:
+def _bg_retire_from_transcript(pane: str, rows: list) -> int:
     """Retire in-flight markers the transcript proves are finished.
 
-    Returns the KINDS retired, because that is what action_done needs to decide
-    whether its blind Workflow fallback still has work to do. Returning a count of
-    unlinked files would undercount: _bg_remove re-lists the directory and its own
-    stale-deadline GC may drop a marker this sweep had already claimed, and a Stop
-    that swept a Bash task would then be free to guess a Workflow away.
+    Returns the count of markers the sweep claimed. This is informational only —
+    nothing branches on it.
 
     The evidence must be NEWER than the marker's last sign of life. That is what
     keeps a resumed agent alive: one Agent id is retired and re-armed over and over
@@ -1385,23 +1366,22 @@ def _bg_retire_from_transcript(pane: str, rows: list) -> set[str]:
     """
     entries = _bg_entries(pane)
     if not entries:
-        return set()
+        return 0
     evidence = _finished_task_evidence(rows)
     if not evidence:
-        return set()
-    ids, kinds = set(), set()
-    for key, kind, alt, tuid, mtime in entries:
+        return 0
+    ids = set()
+    for key, _kind, alt, tuid, mtime in entries:
         when = max(
             (evidence.get(i, 0.0) for i in _bg_entry_ids(key, alt, tuid)), default=0.0
         )
         if when >= mtime:
             ids.add(key)
-            kinds.add(kind)
     if not ids:
-        return set()
+        return 0
     log(f"bg: transcript sweep retiring {sorted(ids)}")
     _bg_remove(pane, ids)
-    return kinds
+    return len(ids)
 
 
 def action_waiting(pane: str, payload: dict) -> None:
@@ -1481,10 +1461,10 @@ def action_tool_completed(pane: str, payload: dict) -> None:
         # LAUNCH, not at completion (see _bg_launch for how that's detected).
         # Record the task as in flight → the tab takes the background-work
         # colour, so the turn's grey "done" look still says "Claude is waiting on
-        # ITS OWN work, not on you". Four things can retire it: its
+        # ITS OWN work, not on you". Three things can retire it: its
         # <task-notification> arriving as a prompt (action_prompt_submit), the
-        # Stop-time transcript sweep (_bg_retire_from_transcript), the per-kind
-        # stale deadline (_bg_entries), or the Workflow fallback in action_done.
+        # Stop-time transcript sweep (_bg_retire_from_transcript), or the per-kind
+        # stale deadline (_bg_entries).
         launch = _bg_launch(payload)
         if launch:
             _bg_add(pane, *launch)
@@ -1597,7 +1577,12 @@ def _text_blocks(content) -> str:
 
     Accepts the str or list form of a transcript message's content. Non-text
     blocks (tool_use, tool_result, thinking, images) are dropped, so tool calls
-    and file reads never leak into the topic context.
+    and file reads never leak into the topic context. This is now also fed
+    arbitrary `tool_result` content (see _task_output_headers), not just
+    message text, so a block can claim `type == "text"` while its `text` key
+    carries a non-string payload — a naive join would raise inside the
+    now-crash-sensitive path this feeds (see action_done); the isinstance
+    check drops that block instead.
     """
     if isinstance(content, str):
         return content.strip()
@@ -1605,7 +1590,9 @@ def _text_blocks(content) -> str:
         parts = [
             b.get("text", "")
             for b in content
-            if isinstance(b, dict) and b.get("type") == "text"
+            if isinstance(b, dict)
+            and b.get("type") == "text"
+            and isinstance(b.get("text"), str)
         ]
         return "\n".join(p for p in parts if p).strip()
     return ""
@@ -1882,6 +1869,19 @@ def action_done(pane: str, payload: dict) -> None:
         return  # stale hook from prior session
     if not get_option(pane, "@cc-last-prompt-ts"):
         return  # no prompt seen in this session yet, defensive
+    # State write first, transcript parse after — deliberately, not incidentally.
+    # `main`'s catch-all swallows any exception raised below (the sweep, the
+    # rename, the reheat analysis all parse transcript rows of unpredictable
+    # shape), and a raise there must not cost us the one thing that is
+    # cheap and unconditionally true: the turn is done. If this write waited on
+    # the parse, a raise would leave @cc-status latched on `working` and the tab
+    # would sit blue claiming Claude is busy long after it finished. Hoisting it
+    # is safe because @cc-workflow is tested ABOVE @cc-status in
+    # window-status-format: a pane with live background work still renders
+    # violet regardless of where in this function `done` gets written.
+    action_set_state(pane, "done")
+    # Turn just ended → the cache was last read now; the idle clock starts here.
+    _touch_cache_ts(pane)
     # Parse the transcript tail ONCE and share it: the background-task sweep, the
     # answer-aware rename and the reheat analysis all read the same just-finished
     # turn at the end of the file. (Reading it separately doubled the disk read +
@@ -1894,26 +1894,8 @@ def action_done(pane: str, payload: dict) -> None:
     # every status-interval, and a 2 MB tail read plus a full JSON parse at that
     # cadence is not affordable — so a completion that lands while the session sits
     # idle still waits out its deadline.
-    #
-    # A Workflow reporting back fires no prompt-submit AT ALL, so a Stop that is a
-    # system re-invocation (no @cc-turn-had-prompt) and that retired no WORKFLOW by
-    # id or by sweep falls back to dropping the oldest in-flight one. Restricting
-    # that blind fallback to Workflow is what keeps unrelated system re-invocations
-    # (a /loop wake-up, a Monitor report) from silently retiring an agent that is
-    # still running; keying the gate on the swept KIND is what stops a Bash task
-    # finishing in the same turn from consuming the Workflow's only retirement path
-    # and stranding it for the full 6 h deadline.
-    had_prompt = get_option(pane, "@cc-turn-had-prompt")
-    notified = get_option(pane, "@cc-turn-notified")
-    unset_option(pane, "@cc-turn-had-prompt")
-    unset_option(pane, "@cc-turn-notified")
-    swept = _bg_retire_from_transcript(pane, rows)
-    if not had_prompt and not notified and "Workflow" not in swept:
-        _bg_remove_oldest(pane, {"Workflow"})
+    _bg_retire_from_transcript(pane, rows)
     _bg_refresh(pane)
-    action_set_state(pane, "done")
-    # Turn just ended → the cache was last read now; the idle clock starts here.
-    _touch_cache_ts(pane)
     # The answer is now in the transcript — refine the window name from the
     # opening goal plus this exchange (early turns only; see maybe_rename_on_answer).
     maybe_rename_on_answer(pane, rows, transcript)
