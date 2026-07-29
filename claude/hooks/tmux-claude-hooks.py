@@ -240,8 +240,8 @@ def _task_output_mtime(alt: str) -> float:
         return 0.0
 
 
-def _bg_entries(pane: str) -> list[tuple[str, str, str, float]]:
-    """List in-flight background tasks as (key, kind, alt_id, mtime).
+def _bg_entries(pane: str) -> list[tuple[str, str, str, str, float]]:
+    """List in-flight background tasks as (key, kind, alt_id, tool_use_id, mtime).
 
     Entries that have shown no sign of life past their per-kind deadline are
     dropped here — a task can die without ever notifying (killed run, crashed
@@ -249,7 +249,7 @@ def _bg_entries(pane: str) -> list[tuple[str, str, str, float]]:
     subagent and never to this pane), and nothing else would ever retire it.
     """
     d = _bg_dir(pane)
-    out: list[tuple[str, str, str, float]] = []
+    out: list[tuple[str, str, str, str, float]] = []
     now = time.time()
     try:
         names = os.listdir(d)
@@ -260,7 +260,10 @@ def _bg_entries(pane: str) -> list[tuple[str, str, str, float]]:
         try:
             mtime = os.path.getmtime(path)
             with open(path, encoding="utf-8") as fh:
-                kind, _, alt = fh.read().strip().partition("\t")
+                fields = fh.read().strip().split("\t")
+            kind = fields[0] if fields else ""
+            alt = fields[1] if len(fields) > 1 else ""
+            tuid = fields[2] if len(fields) > 2 else ""
         except OSError:
             continue
         deadline = _bg_stale_after(kind)
@@ -280,7 +283,7 @@ def _bg_entries(pane: str) -> list[tuple[str, str, str, float]]:
                     pass
                 log(f"bg: dropped dead {kind} {name} (silent {int(now - mtime)}s)")
                 continue
-        out.append((name, kind, alt, mtime))
+        out.append((name, kind, alt, tuid, mtime))
     return out
 
 
@@ -332,17 +335,23 @@ def _bg_refresh(pane: str) -> int:
     return n
 
 
-def _bg_add(pane: str, key: str, kind: str, alt: str) -> None:
-    """Record one launched background task. Creating the file is atomic."""
+def _bg_add(pane: str, key: str, kind: str, alt: str, tuid: str = "") -> None:
+    """Record one launched background task. Creating the file is atomic.
+
+    Both ids are stored because a notification may name either: <task-id> is the
+    task's own id (our filename) and <tool-use-id> is the call that started it —
+    and for a resumed agent those differ, since the resume is a fresh
+    SendMessage call against a long-lived agent id.
+    """
     d = _bg_dir(pane)
     try:
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, _bg_key(key)), "w", encoding="utf-8") as fh:
-            fh.write(f"{kind}\t{alt}\n")
+            fh.write(f"{kind}\t{alt}\t{tuid}\n")
     except OSError as e:
         log(f"bg add {key}: {type(e).__name__}: {e}")
         return
-    log(f"bg add {kind} key={key} alt={alt}")
+    log(f"bg add {kind} key={key} alt={alt} tuid={tuid}")
     _bg_refresh(pane)
 
 
@@ -356,8 +365,8 @@ def _bg_remove(pane: str, ids: set[str]) -> int:
     via SendMessage stops again).
     """
     removed = 0
-    for key, _kind, alt, _mtime in _bg_entries(pane):
-        if key in ids or (alt and alt in ids):
+    for key, _kind, alt, tuid, _mtime in _bg_entries(pane):
+        if key in ids or (alt and alt in ids) or (tuid and tuid in ids):
             try:
                 os.unlink(os.path.join(_bg_dir(pane), key))
                 removed += 1
@@ -378,7 +387,7 @@ def _bg_remove_oldest(pane: str, kinds: set[str]) -> int:
     candidates = [e for e in _bg_entries(pane) if e[1] in kinds]
     if not candidates:
         return 0
-    key = min(candidates, key=lambda e: e[3])[0]
+    key = min(candidates, key=lambda e: e[4])[0]
     try:
         os.unlink(os.path.join(_bg_dir(pane), key))
     except OSError:
@@ -1077,9 +1086,16 @@ def _append_touched_file(session_id: str, file_path: str) -> None:
 
 # Tools that can run in the background. Workflow always does; the others are
 # detected from the tool RESULT, not the input — see _bg_launch.
-BACKGROUND_CAPABLE_TOOLS = {"Agent", "Bash"}
+BACKGROUND_CAPABLE_TOOLS = {"Agent", "Bash", "SendMessage"}
 # Ids in the result that identify a launched background task, best first.
-BG_RESULT_ID_KEYS = ("backgroundTaskId", "agentId", "taskId", "task_id", "runId")
+BG_RESULT_ID_KEYS = (
+    "backgroundTaskId",
+    "agentId",
+    "resumedAgentId",
+    "taskId",
+    "task_id",
+    "runId",
+)
 # Both ids a <task-notification> carries: <tool-use-id> matches our marker
 # filename, <task-id> matches the recorded alt id. Either one retires the task.
 NOTIFICATION_ID_RE = re.compile(
@@ -1087,9 +1103,9 @@ NOTIFICATION_ID_RE = re.compile(
 )
 
 
-def _bg_launch(payload: dict) -> tuple[str, str, str] | None:
-    """Return (marker_key, kind, alt_id) when this PostToolUse LAUNCHED a
-    background task, else None.
+def _bg_launch(payload: dict) -> tuple[str, str, str, str] | None:
+    """Return (marker_key, kind, alt_id, tool_use_id) when this PostToolUse
+    LAUNCHED a background task, else None.
 
     Detected from the tool RESULT, because the input flag is not reliable: the
     harness backgrounds `Agent` by DEFAULT, so `run_in_background` is simply
@@ -1098,14 +1114,22 @@ def _bg_launch(payload: dict) -> tuple[str, str, str] | None:
     them, and the marker could only ever go down. The result is unambiguous:
       Agent (async)  -> {"isAsync": true, "status": "async_launched", "agentId": …}
       Bash (backgrounded) -> {"backgroundTaskId": "bexhstrat", …}
+      SendMessage (resumed an idle agent, which then runs in the background)
+                     -> {"success": true, "resumedAgentId": …, "message": "…"}
       Workflow       -> always background
     A blocking call keeps the turn open (the tab stays blue on @cc-status) and
     must NOT be counted, hence the strict async test for Agent.
+
+    SendMessage matters as much as the initial dispatch: a long agent session is
+    typically one Agent call and then a string of resumes, each of which puts the
+    agent back to work in the background and notifies on completion. Missing them
+    left the tab grey through the whole second half of an agent's life.
     """
     tool = payload.get("tool_name", "")
     resp = payload.get("tool_response")
     alt = ""
     is_async = False
+    resumed = False
     if isinstance(resp, dict):
         for k in BG_RESULT_ID_KEYS:
             v = resp.get(k)
@@ -1113,11 +1137,17 @@ def _bg_launch(payload: dict) -> tuple[str, str, str] | None:
                 alt = v
                 break
         is_async = bool(resp.get("isAsync")) or resp.get("status") == "async_launched"
+        resumed = bool(resp.get("resumedAgentId")) or (
+            bool(resp.get("success"))
+            and "in the background" in str(resp.get("message") or "")
+        )
     elif isinstance(resp, str):
-        m = re.search(r"agentId:\s*([A-Za-z0-9_-]+)", resp)
+        m = re.search(r"(?:agentId|resumedAgentId)\D{0,3}([A-Za-z0-9_-]{6,})", resp)
         if m:
             alt = m.group(1)
-            is_async = "async" in resp[:200].lower()
+            head = resp[:400].lower()
+            is_async = "async" in head
+            resumed = "in the background" in head
 
     if tool == "Workflow":
         backgrounded = True
@@ -1127,16 +1157,22 @@ def _bg_launch(payload: dict) -> tuple[str, str, str] | None:
         )
     elif tool == "Agent":
         backgrounded = is_async
+    elif tool == "SendMessage":
+        backgrounded = bool(resumed) or (bool(alt) and is_async)
     else:
         backgrounded = False
     if not backgrounded:
         return None
 
-    key = payload.get("tool_use_id") or alt
+    tuid = payload.get("tool_use_id") or ""
+    # Key on the task's own id when we have one, not on the call that started it:
+    # the same agent is resumed over and over via SendMessage, and each resume
+    # must refresh the ONE marker for that agent rather than pile up a new one.
+    key = alt or tuid
     if not key:
         log(f"bg: {tool} launch with no id to key on; skipped")
         return None
-    return key, tool, alt
+    return key, tool, alt, tuid
 
 
 def _notification_ids(prompt: str) -> set[str]:
@@ -1153,15 +1189,17 @@ def _notification_ids(prompt: str) -> set[str]:
 
 def action_waiting(pane: str, payload: dict) -> None:
     # An idle_prompt Notification means "this session has been quiet for a
-    # minute", NOT "Claude asked you something" — it fires ~60s after every
-    # turn end. While background work is in flight the violet marker is the
-    # truer story ("waiting on its own agents"), and since waiting outranks the
-    # violet colour, letting idle through repainted a busy-with-agents tab as
-    # needs-you grey. Real requests (PermissionRequest, elicitation_dialog)
-    # still win. Cache-ts is deliberately left alone here too: idle fires no
-    # API call, so it must not extend the cache countdown.
-    if payload.get("notification_type") == "idle_prompt" and _bg_entries(pane):
-        log("waiting: idle_prompt suppressed, background work in flight")
+    # minute", NOT "Claude asked you something" — it fires ~60s after every turn
+    # end, when @cc-status is already `done`. It is ignored outright, for two
+    # reasons. It buys nothing: `done` and `waiting` render identically, so the
+    # tab looks the same either way. And it costs something: `waiting` outranks
+    # the violet background colour, so a latched idle state hides background work
+    # that starts (or is recorded) afterwards — which is exactly how a tab with a
+    # live agent stayed grey. Real requests (PermissionRequest,
+    # elicitation_dialog) still set `waiting`. Cache-ts is left alone too: idle
+    # fires no API call, so it must not extend the cache countdown.
+    if payload.get("notification_type") == "idle_prompt":
+        log("waiting: idle_prompt ignored (no colour of its own)")
         return
     # The model just made an API call that needs you (permission / idle prompt),
     # so the cache was read moments ago — anchor the idle clock here too.
