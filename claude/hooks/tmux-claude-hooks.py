@@ -355,6 +355,17 @@ def _bg_add(pane: str, key: str, kind: str, alt: str, tuid: str = "") -> None:
     _bg_refresh(pane)
 
 
+def _bg_entry_ids(key: str, alt: str, tuid: str) -> set[str]:
+    """Every id one marker answers to: its filename, its task id, its tool-use id.
+
+    One place, because two callers ask the same question of a marker — _bg_remove
+    ("is this marker named by the completion I was handed?") and
+    _bg_retire_from_transcript ("what evidence could be about this marker?"). A
+    marker file that grows a fourth recorded id must not have to remember both.
+    """
+    return {i for i in (key, alt, tuid) if i}
+
+
 def _bg_remove(pane: str, ids: set[str]) -> int:
     """Retire tasks whose marker key OR recorded alt id is in `ids`.
 
@@ -366,7 +377,7 @@ def _bg_remove(pane: str, ids: set[str]) -> int:
     """
     removed = 0
     for key, _kind, alt, tuid, _mtime in _bg_entries(pane):
-        if key in ids or (alt and alt in ids) or (tuid and tuid in ids):
+        if _bg_entry_ids(key, alt, tuid) & ids:
             try:
                 os.unlink(os.path.join(_bg_dir(pane), key))
                 removed += 1
@@ -1101,6 +1112,32 @@ BG_RESULT_ID_KEYS = (
 NOTIFICATION_ID_RE = re.compile(
     r"<(?:task-id|tool-use-id)>\s*([^<\s]+)\s*</(?:task-id|tool-use-id)>"
 )
+# A TaskOutput result names the task with UNDERSCORES (<task_id>) and carries the
+# harness's own view of its state — evidence of completion just as good as the
+# notification, and the only evidence left when the turn collected the result
+# itself (see _finished_task_evidence).
+TASK_RESULT_ID_RE = re.compile(r"<task_id>\s*([^<\s]+)\s*</task_id>")
+TASK_STATUS_RE = re.compile(r"<status>\s*([A-Za-z_]+)\s*</status>")
+# Statuses that retire a task, as a WHITELIST: an unrecognized value leaves the
+# marker alone. Deliberately the timid direction — a status this script has never
+# heard of (a future `paused`, `starting`, `awaiting_input`) would otherwise be read
+# as "finished" and drop the violet off a tab whose work is very much alive, while
+# the cost of not recognizing a real terminal state is only that the per-kind stale
+# deadline handles it a few minutes later. `completed`, `failed`, `running` and
+# `killed` are the values actually observed in this machine's transcripts; the rest
+# are spelling variants worth accepting for free.
+TERMINAL_TASK_STATUSES = {
+    "completed",
+    "complete",
+    "failed",
+    "failure",
+    "error",
+    "killed",
+    "cancelled",
+    "canceled",
+    "timeout",
+    "timed_out",
+}
 
 
 def _bg_launch(payload: dict) -> tuple[str, str, str, str] | None:
@@ -1187,6 +1224,186 @@ def _notification_ids(prompt: str) -> set[str]:
     return set(NOTIFICATION_ID_RE.findall(prompt))
 
 
+def _row_epoch(row: dict) -> float:
+    """A transcript row's timestamp as epoch seconds, 0.0 if unusable.
+
+    0.0 means "no usable evidence" — the caller compares this against a marker's
+    mtime, and an unknown time must never win that comparison. A timestamp with no
+    zone is unusable ON PURPOSE rather than read as local time: every real row
+    carries a trailing Z, so a naive string is a shape we do not understand, and
+    guessing would silently shift it by the machine's UTC offset (4 h here) — in
+    the direction that decides whether a marker lives or dies.
+    """
+    ts = row.get("timestamp")
+    if not isinstance(ts, str):
+        return 0.0
+    try:
+        parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return 0.0
+    if parsed.tzinfo is None:
+        return 0.0
+    return parsed.timestamp()
+
+
+def _notification_blob(row: dict) -> str:
+    """The <task-notification> text this row records as JUST HAVING HAPPENED, or "".
+
+    Exactly one shape qualifies: a `queue-operation` whose operation is `enqueue`.
+    The harness enqueues the notification the moment the task ends, so the row's
+    timestamp is the completion itself — which is the only thing the caller's
+    "evidence must be newer than the marker" test can be reasoned about.
+
+    Every other carrier of the same text is dated by when it was HANDLED, not when
+    the task finished, and each would break that test:
+      - `queue-operation`/`remove` is the moment the entry was dropped from the
+        queue, arbitrarily later;
+      - an `attachment` of type queued_command is the moment it was handed to the
+        model, likewise later;
+      - a tool_result carries notification text whenever a transcript or
+        /tmp/cc-tmux-claude-hooks.log is read — which is how this script gets
+        debugged — dated now.
+    Any of those late datings can outrank a resume that happened after the
+    completion and retire a marker whose run is live — see
+    _bg_retire_from_transcript for why one marker outlives many runs. A TaskOutput
+    reply is the one late reading that is still sound, because it reports the task's
+    state AS OF that moment rather than replaying an old event — see
+    _task_output_headers.
+    """
+    if row.get("type") != "queue-operation" or row.get("operation") != "enqueue":
+        return []
+    content = row.get("content")
+    return content if isinstance(content, str) else ""
+
+
+def _task_output_headers(row: dict) -> list[str]:
+    """The header of every TaskOutput reply in this row.
+
+    The other way a completion gets recorded: the turn asked for the result itself,
+    so no notification was ever delivered. Only the HEADER is returned — everything
+    before the first <output> — because the body is arbitrary task output. A trivy
+    report, a curl of an API or a nested transcript can carry its own <status> tag,
+    and folding that into the task's own status marks a task the same reply calls
+    `running` as finished (this machine's transcripts already contain such replies).
+
+    The `<retrieval_status>` prefix is required so that a Read or Bash result which
+    merely quotes a reply does not qualify as one.
+    """
+    if row.get("type") != "user":
+        return []
+    content = _message_field(row, "content")
+    if not isinstance(content, list):
+        return []
+    headers = []
+    for block in content:
+        if not isinstance(block, dict) or block.get("type") != "tool_result":
+            continue
+        # _text_blocks owns the str-or-list-of-text-parts shape for this file, and
+        # its `type == "text"` filter is the stricter reading: a part carrying a
+        # `text` key without saying it IS text does not get to speak here.
+        text = _text_blocks(block.get("content"))
+        if text.startswith("<retrieval_status>"):
+            headers.append(text.split("<output>", 1)[0])
+    return headers
+
+
+def _reports_finished(block: str) -> bool:
+    """True when ONE block's every <status> names a state a task cannot come back
+    from.
+
+    No <status> at all is not finished: the absence of a state is not proof of one.
+    A block carrying several must have them ALL terminal — a batch that mixes a
+    completed task with a running one is split per block precisely so that a single
+    non-terminal status vetoes the whole block instead of averaging out, and an
+    unknown value vetoes it too (see TERMINAL_TASK_STATUSES).
+    """
+    statuses = {s.lower() for s in TASK_STATUS_RE.findall(block)}
+    return bool(statuses) and statuses <= TERMINAL_TASK_STATUSES
+
+
+def _finished_task_evidence(rows: list) -> dict[str, float]:
+    """Map task/tool-use id -> newest moment the transcript showed it finished.
+
+    Covers the hole the id-keyed retirement in action_prompt_submit cannot: a
+    completion only reaches that path as a UserPromptSubmit, and a task that ends
+    while the turn is STILL RUNNING may never produce one. The harness queues the
+    notification, the turn collects the result itself (TaskOutput, or a plain read
+    of the output file), and the queued entry is REMOVED instead of delivered — no
+    prompt-submit, no retirement, and the tab stays violet until the per-kind stale
+    deadline (BG_STALE_BY_KIND) drops the marker. The transcript records the
+    completion in every one of those cases, so Stop re-derives it from there.
+
+    A notification blob is split per <task-notification> block, and a TaskOutput
+    reply is cut down to its header, so that one live task can never be reported as
+    finished by text that merely travelled next to it.
+    """
+    evidence: dict[str, float] = {}
+    for row in rows:
+        # Defensive: _read_transcript_tail already drops non-dict rows, but this is
+        # also called directly by the tests.
+        if not isinstance(row, dict):
+            continue
+        # Type first: the epoch parse is the most expensive thing here and every
+        # `assistant` row — about half a tail — would pay it for nothing.
+        kind = row.get("type")
+        if kind not in ("queue-operation", "user"):
+            continue
+        when = _row_epoch(row)
+        if not when:
+            continue
+        blob = _notification_blob(row)
+        if "<task-notification>" in blob:
+            for block in blob.split("</task-notification>"):
+                if _reports_finished(block):
+                    for tid in _notification_ids(block):
+                        evidence[tid] = max(when, evidence.get(tid, 0.0))
+        for header in _task_output_headers(row):
+            if _reports_finished(header):
+                for tid in TASK_RESULT_ID_RE.findall(header):
+                    evidence[tid] = max(when, evidence.get(tid, 0.0))
+    return evidence
+
+
+def _bg_retire_from_transcript(pane: str, rows: list) -> set[str]:
+    """Retire in-flight markers the transcript proves are finished.
+
+    Returns the KINDS retired, because that is what action_done needs to decide
+    whether its blind Workflow fallback still has work to do. Returning a count of
+    unlinked files would undercount: _bg_remove re-lists the directory and its own
+    stale-deadline GC may drop a marker this sweep had already claimed, and a Stop
+    that swept a Bash task would then be free to guess a Workflow away.
+
+    The evidence must be NEWER than the marker's last sign of life. That is what
+    keeps a resumed agent alive: one Agent id is retired and re-armed over and over
+    by SendMessage, each resume rewriting the same marker, so a completion recorded
+    earlier in the session says nothing about the run that is live now. Two other
+    writers bump that mtime and therefore outrank evidence by design — _bg_entries
+    adopting a task's output-file clock, and _bg_heartbeat pushing every Agent
+    marker to now on a subagent's tool activity. Both mean the sweep declines and
+    the per-kind deadline decides instead: this is a shortcut past the deadline, not
+    a replacement for it.
+    """
+    entries = _bg_entries(pane)
+    if not entries:
+        return set()
+    evidence = _finished_task_evidence(rows)
+    if not evidence:
+        return set()
+    ids, kinds = set(), set()
+    for key, kind, alt, tuid, mtime in entries:
+        when = max(
+            (evidence.get(i, 0.0) for i in _bg_entry_ids(key, alt, tuid)), default=0.0
+        )
+        if when >= mtime:
+            ids.add(key)
+            kinds.add(kind)
+    if not ids:
+        return set()
+    log(f"bg: transcript sweep retiring {sorted(ids)}")
+    _bg_remove(pane, ids)
+    return kinds
+
+
 def action_waiting(pane: str, payload: dict) -> None:
     # An idle_prompt Notification means "this session has been quiet for a
     # minute", NOT "Claude asked you something" — it fires ~60s after every turn
@@ -1264,9 +1481,10 @@ def action_tool_completed(pane: str, payload: dict) -> None:
         # LAUNCH, not at completion (see _bg_launch for how that's detected).
         # Record the task as in flight → the tab takes the background-work
         # colour, so the turn's grey "done" look still says "Claude is waiting on
-        # ITS OWN work, not on you". Retired by id when its <task-notification>
-        # arrives (action_prompt_submit), or via the Workflow fallback in
-        # action_done.
+        # ITS OWN work, not on you". Four things can retire it: its
+        # <task-notification> arriving as a prompt (action_prompt_submit), the
+        # Stop-time transcript sweep (_bg_retire_from_transcript), the per-kind
+        # stale deadline (_bg_entries), or the Workflow fallback in action_done.
         launch = _bg_launch(payload)
         if launch:
             _bg_add(pane, *launch)
@@ -1338,17 +1556,34 @@ def _read_transcript_tail(path: str) -> tuple:
         if not line:
             continue
         try:
-            rows.append(json.loads(line.decode("utf-8", "replace")))
+            row = json.loads(line.decode("utf-8", "replace"))
         except ValueError:
             continue
+        # Valid JSON is not a valid row: a bare `[]`, a number or a string parses
+        # fine and every consumer here calls row.get(). Filtering at the parser
+        # keeps that AttributeError out of the Stop hook, where main's catch-all
+        # would swallow it and silently drop the rename and reheat analysis.
+        if isinstance(row, dict):
+            rows.append(row)
     return rows, truncated
+
+
+def _message_field(row: dict, name: str) -> object | None:
+    """One field of a row's `message`, or None if the row has no usable message.
+
+    `message` is assumed to be an object all over this file, and a row where it is
+    a string (or anything else) is enough to raise straight through a hook — see
+    _read_transcript_tail on why a wrong-shaped row is not a theoretical input.
+    """
+    message = row.get("message")
+    return message.get(name) if isinstance(message, dict) else None
 
 
 def _is_user_prompt(row: dict) -> bool:
     """True for a genuine user prompt, False for a tool_result continuation."""
     if row.get("type") != "user":
         return False
-    content = (row.get("message") or {}).get("content")
+    content = _message_field(row, "content")
     if isinstance(content, str):
         return True
     if isinstance(content, list):
@@ -1385,14 +1620,14 @@ def _assistant_text(row: dict) -> str:
     """Claude's prose from an assistant transcript row (sidechains excluded)."""
     if not _is_main_assistant(row):
         return ""
-    return _text_blocks((row.get("message") or {}).get("content"))
+    return _text_blocks(_message_field(row, "content"))
 
 
 def _user_prompt_text(row: dict) -> str:
     """The user's text from a genuine prompt row (not a tool_result continuation)."""
     if not _is_user_prompt(row):
         return ""
-    return _text_blocks((row.get("message") or {}).get("content"))
+    return _text_blocks(_message_field(row, "content"))
 
 
 def _cut_head(text: str, limit: int) -> str:
@@ -1565,7 +1800,7 @@ def _analyze_reheat(rows: list, truncated: bool) -> tuple:
     for r in rows[:start]:
         if not _is_main_assistant(r):
             continue
-        usage = (r.get("message") or {}).get("usage") or {}
+        usage = _message_field(r, "usage") or {}
         if not usage:
             continue
         prior_call = True
@@ -1576,7 +1811,7 @@ def _analyze_reheat(rows: list, truncated: bool) -> tuple:
     for row in rows[start + 1:]:
         if not _is_main_assistant(row):
             continue
-        usage = (row.get("message") or {}).get("usage") or {}
+        usage = _message_field(row, "usage") or {}
         if not usage:
             continue
         read = usage.get("cache_read_input_tokens") or 0
@@ -1647,28 +1882,38 @@ def action_done(pane: str, payload: dict) -> None:
         return  # stale hook from prior session
     if not get_option(pane, "@cc-last-prompt-ts"):
         return  # no prompt seen in this session yet, defensive
-    # Background tasks are normally retired by id when their <task-notification>
-    # arrives (action_prompt_submit). Workflow is the exception — its completion
-    # fires no prompt-submit at all — so a Stop that is a system re-invocation
-    # (no @cc-turn-had-prompt) and whose turn retired nothing by id retires the
-    # oldest in-flight Workflow instead. Restricting the fallback to Workflow is
-    # what keeps unrelated system re-invocations (a /loop wake-up, a Monitor
-    # report) from silently retiring an agent that is still running.
+    # Parse the transcript tail ONCE and share it: the background-task sweep, the
+    # answer-aware rename and the reheat analysis all read the same just-finished
+    # turn at the end of the file. (Reading it separately doubled the disk read +
+    # JSON parse on every Stop.)
+    transcript = payload.get("transcript_path", "") or ""
+    rows, truncated = _read_transcript_tail(transcript)
+    # Sweep the transcript for completions no prompt-submit ever reported (see
+    # _finished_task_evidence). Stop is the only hook that does this: the status-bar
+    # `gc` action would be the wider net, but it runs per background-work window
+    # every status-interval, and a 2 MB tail read plus a full JSON parse at that
+    # cadence is not affordable — so a completion that lands while the session sits
+    # idle still waits out its deadline.
+    #
+    # A Workflow reporting back fires no prompt-submit AT ALL, so a Stop that is a
+    # system re-invocation (no @cc-turn-had-prompt) and that retired no WORKFLOW by
+    # id or by sweep falls back to dropping the oldest in-flight one. Restricting
+    # that blind fallback to Workflow is what keeps unrelated system re-invocations
+    # (a /loop wake-up, a Monitor report) from silently retiring an agent that is
+    # still running; keying the gate on the swept KIND is what stops a Bash task
+    # finishing in the same turn from consuming the Workflow's only retirement path
+    # and stranding it for the full 6 h deadline.
     had_prompt = get_option(pane, "@cc-turn-had-prompt")
     notified = get_option(pane, "@cc-turn-notified")
     unset_option(pane, "@cc-turn-had-prompt")
     unset_option(pane, "@cc-turn-notified")
-    if not had_prompt and not notified:
+    swept = _bg_retire_from_transcript(pane, rows)
+    if not had_prompt and not notified and "Workflow" not in swept:
         _bg_remove_oldest(pane, {"Workflow"})
     _bg_refresh(pane)
     action_set_state(pane, "done")
     # Turn just ended → the cache was last read now; the idle clock starts here.
     _touch_cache_ts(pane)
-    # Parse the transcript tail ONCE and share it: the answer-aware rename and the
-    # reheat analysis both read the same just-finished turn at the end of the file.
-    # (Reading it separately doubled the disk read + JSON parse on every Stop.)
-    transcript = payload.get("transcript_path", "") or ""
-    rows, truncated = _read_transcript_tail(transcript)
     # The answer is now in the transcript — refine the window name from the
     # opening goal plus this exchange (early turns only; see maybe_rename_on_answer).
     maybe_rename_on_answer(pane, rows, transcript)
