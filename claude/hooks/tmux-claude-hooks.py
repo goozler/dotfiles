@@ -96,6 +96,16 @@ DEFAULT_WINDOW_NAME_RE = re.compile(
 TOUCHED_FILES_DIR = os.path.expanduser("~/.claude/state")
 FILE_TOUCHING_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
+# In-flight background tasks, one marker file per task under a per-pane
+# directory. A file — not an integer in a tmux option — because launches are
+# concurrent (several agents dispatched in one message fire their PostToolUse
+# hooks in parallel) and completions are keyed by id, so add/remove must be
+# atomic and idempotent. @cc-workflow is re-derived from these files and only
+# feeds the status bar. Entries older than BG_STALE_SECONDS are garbage
+# collected on read, so a killed run cannot latch the marker forever.
+BG_STATE_DIR = os.path.join(TOUCHED_FILES_DIR, "cc-bg")
+BG_STALE_SECONDS = int(os.environ.get("CC_BG_STALE_SECONDS", str(6 * 3600)))
+
 # --- Prompt-cache reheat detection -------------------------------------------
 # A "reheat" is a turn whose first API call re-created more context than it read
 # from cache (cache_creation > cache_read, with creation past a floor) — i.e.
@@ -179,24 +189,122 @@ def unset_option(pane: str, name: str) -> None:
     tmux("set-option", "-w", "-u", "-t", pane, name)
 
 
-def _bump_workflow(pane: str, delta: int) -> None:
-    """Adjust the in-flight background-task count on this window.
+def _bg_dir(pane: str) -> str:
+    """Directory holding one marker file per in-flight background task."""
+    return os.path.join(BG_STATE_DIR, _bg_key(pane))
 
-    Drives the "background work running — wait for it" tab colour. Stored
-    as a positive integer while one or more background tasks (Workflow runs,
-    background Agents, background Bash commands) are in flight, and unset once
-    the count returns to zero. We unset rather than store "0" because tmux
-    treats the non-empty string "0" as truthy in #{?...}.
+
+def _bg_key(raw: str) -> str:
+    """Filesystem-safe key (pane ids look like %377, task ids are alnum)."""
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", raw) or "unknown"
+
+
+def _bg_entries(pane: str) -> list[tuple[str, str, str, float]]:
+    """List in-flight background tasks as (key, kind, alt_id, mtime).
+
+    Stale entries (older than BG_STALE_SECONDS) are dropped here, so a killed
+    run or a crashed session cannot latch the marker on forever.
     """
+    d = _bg_dir(pane)
+    out: list[tuple[str, str, str, float]] = []
+    now = time.time()
     try:
-        n = int(get_option(pane, "@cc-workflow") or "0")
-    except ValueError:
-        n = 0
-    n = max(0, n + delta)
+        names = os.listdir(d)
+    except OSError:
+        return out
+    for name in names:
+        path = os.path.join(d, name)
+        try:
+            mtime = os.path.getmtime(path)
+            if now - mtime > BG_STALE_SECONDS:
+                os.unlink(path)
+                log(f"bg: dropped stale {name}")
+                continue
+            with open(path, encoding="utf-8") as fh:
+                kind, _, alt = fh.read().strip().partition("\t")
+        except OSError:
+            continue
+        out.append((name, kind, alt, mtime))
+    return out
+
+
+def _bg_refresh(pane: str) -> int:
+    """Re-derive @cc-workflow from the marker files. Returns the count.
+
+    The option is only a render input — the files are the truth — so every hook
+    that touches the state recomputes it. That self-heals the read-modify-write
+    races the old integer counter had when several background tasks launched in
+    the same message. We unset rather than store "0" because tmux treats the
+    non-empty string "0" as truthy in #{?...}.
+    """
+    n = len(_bg_entries(pane))
     if n > 0:
         set_option(pane, "@cc-workflow", str(n))
     else:
         unset_option(pane, "@cc-workflow")
+    return n
+
+
+def _bg_add(pane: str, key: str, kind: str, alt: str) -> None:
+    """Record one launched background task. Creating the file is atomic."""
+    d = _bg_dir(pane)
+    try:
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, _bg_key(key)), "w", encoding="utf-8") as fh:
+            fh.write(f"{kind}\t{alt}\n")
+    except OSError as e:
+        log(f"bg add {key}: {type(e).__name__}: {e}")
+        return
+    log(f"bg add {kind} key={key} alt={alt}")
+    _bg_refresh(pane)
+
+
+def _bg_remove(pane: str, ids: set[str]) -> int:
+    """Retire tasks whose marker key OR recorded alt id is in `ids`.
+
+    A notification carries both the tool-use id (our filename) and the task id
+    (the alt), and both point at the same single file — so matching on either
+    can never retire two tasks for one completion. Removal is idempotent, which
+    matters because the same task-id may notify more than once (an agent resumed
+    via SendMessage stops again).
+    """
+    removed = 0
+    for key, _kind, alt, _mtime in _bg_entries(pane):
+        if key in ids or (alt and alt in ids):
+            try:
+                os.unlink(os.path.join(_bg_dir(pane), key))
+                removed += 1
+            except OSError:
+                pass
+    if removed:
+        log(f"bg remove {removed} of {sorted(ids)}")
+        _bg_refresh(pane)
+    return removed
+
+
+def _bg_remove_oldest(pane: str, kinds: set[str]) -> int:
+    """Retire the oldest in-flight task of one of `kinds`. Fallback path only.
+
+    Used for tools whose completion produces no notification we can key on
+    (Workflow re-invokes Claude with no prompt-submit at all).
+    """
+    candidates = [e for e in _bg_entries(pane) if e[1] in kinds]
+    if not candidates:
+        return 0
+    key = min(candidates, key=lambda e: e[3])[0]
+    try:
+        os.unlink(os.path.join(_bg_dir(pane), key))
+    except OSError:
+        return 0
+    log(f"bg remove oldest {key} (kinds={sorted(kinds)})")
+    _bg_refresh(pane)
+    return 1
+
+
+def _bg_clear(pane: str) -> None:
+    """Drop all background-task state for this pane."""
+    shutil.rmtree(_bg_dir(pane), ignore_errors=True)
+    unset_option(pane, "@cc-workflow")
 
 
 def _touch_cache_ts(pane: str, now: int | None = None) -> None:
@@ -715,11 +823,16 @@ def _is_system_notification(prompt: str) -> bool:
     A background Bash/Agent task completing re-invokes Claude with a synthetic
     prompt wrapped in <task-notification> (observed empirically; Workflow
     completions fire no prompt-submit at all). Such a turn must NOT count as
-    user-initiated: @cc-turn-had-prompt stays unset so its Stop retires one
-    background task from the background-work marker (see action_done), and it must not
+    user-initiated: @cc-turn-had-prompt stays unset, the named tasks are retired
+    from the background-work marker (see action_prompt_submit), and it must not
     advance the prompt counter or trigger a rename.
+
+    Matched anywhere in the prompt head rather than with a strict startswith:
+    the harness may prepend its own "[SYSTEM NOTIFICATION - NOT USER INPUT]"
+    preamble, which a leading-anchor test would miss — and a missed
+    notification looks exactly like a real user turn.
     """
-    return prompt.lstrip().startswith("<task-notification>")
+    return "<task-notification>" in prompt[:2000]
 
 
 def action_prompt_submit(pane: str, payload: dict) -> None:
@@ -737,15 +850,31 @@ def action_prompt_submit(pane: str, payload: dict) -> None:
     _touch_cache_ts(pane, now)
     # A new turn starts warm; clear the previous turn's reheat marker.
     unset_option(pane, "@cc-reheat")
-    # Force-set "working" (bypasses severity merge — a new turn always overrides).
-    set_option(pane, "@cc-status", "working")
-    unset_option(pane, "@cc-waiting-tool")  # any pending question died with the old turn
+
+    prompt = payload.get("prompt", "") or ""
     # A harness notification (background task completing) is a system
-    # re-invocation, not a user turn: leave @cc-turn-had-prompt unset so this
-    # turn's Stop retires one background task from the background-work marker, and don't
-    # let it advance the prompt counter or trigger a rename.
-    if _is_system_notification(payload.get("prompt", "") or ""):
+    # re-invocation, not a user turn: retire the tasks it names, leave
+    # @cc-turn-had-prompt unset, and don't let it advance the prompt counter or
+    # trigger a rename.
+    if _is_system_notification(prompt):
+        ids = _notification_ids(prompt)
+        if ids and _bg_remove(pane, ids):
+            # Tell action_done a notification already retired something, so its
+            # Workflow fallback can't double-retire on this same Stop.
+            set_option(pane, "@cc-turn-notified", "1")
+        # Severity-merged, NOT forced: a permission prompt or AskUserQuestion may
+        # still be on screen, and a background task reporting back must not
+        # repaint the tab as "working" and drop the pending question — forcing it
+        # here is how "Claude needs you" used to get lost mid-turn.
+        action_set_state(pane, "working")
+        _bg_refresh(pane)
         return
+
+    # Real user turn: force "working" (bypasses severity merge — a new turn
+    # always overrides) and drop any question that died with the old turn.
+    set_option(pane, "@cc-status", "working")
+    unset_option(pane, "@cc-waiting-tool")
+    _bg_refresh(pane)
     # Mark this turn as user-initiated. The Stop hook reads it to tell a real
     # prompt turn apart from a system re-invocation (a background Workflow
     # reporting back fires no prompt-submit at all; a background Bash/Agent
@@ -766,11 +895,20 @@ def action_session_start(pane: str, payload: dict) -> None:
     sid = payload.get("session_id", "")
     if sid:
         set_option(pane, "@cc-session-id", sid)
+    # SessionStart also fires on compact — mid-turn, with the same session and
+    # its background tasks still running. Wiping the marker there dropped the
+    # colour while agents were live, so compact keeps the background state (and
+    # the current colour); every other source (startup / clear / resume) is a
+    # fresh conversation and clears it.
+    if (payload.get("source") or "startup") == "compact":
+        _bg_refresh(pane)
+        return
     unset_option(pane, "@cc-status")
     unset_option(pane, "@cc-reheat")
     unset_option(pane, "@cc-cache-ts")
-    unset_option(pane, "@cc-workflow")
+    _bg_clear(pane)
     unset_option(pane, "@cc-turn-had-prompt")
+    unset_option(pane, "@cc-turn-notified")
     # Reset the per-session prompt counter; keep @cc-auto-name so a new session
     # in the same window can update *our* prior auto-name but never clobber a
     # manual one.
@@ -783,8 +921,9 @@ def action_session_start(pane: str, payload: dict) -> None:
 
 def action_session_end(pane: str, _payload: dict) -> None:
     unset_option(pane, "@cc-status")
-    unset_option(pane, "@cc-workflow")
+    _bg_clear(pane)
     unset_option(pane, "@cc-turn-had-prompt")
+    unset_option(pane, "@cc-turn-notified")
     unset_option(pane, "@cc-waiting-tool")
     # Clear the cache markers too — without this the countdown timer
     # (@cc-cache-ts) keeps running and the reheat/cold-cache marker
@@ -801,12 +940,15 @@ def action_reset(pane: str, _payload: dict) -> None:
 
     The only reliable recovery for states no hook can clear — chiefly an ESC
     interrupt (no Stop fires, so "working" would otherwise stay latched) and a
-    background-workflow marker left stuck because its completion never produced
-    a no-prompt Stop (killed run, batched concurrent completions).
+    background marker left stuck because a task died without ever notifying.
+    Bound to tmux prefix+u, which must call THIS action rather than unsetting
+    the options itself: the background state lives in files now, and unsetting
+    @cc-workflow alone would let the next hook re-derive it right back.
     """
     unset_option(pane, "@cc-status")
-    unset_option(pane, "@cc-workflow")
+    _bg_clear(pane)
     unset_option(pane, "@cc-turn-had-prompt")
+    unset_option(pane, "@cc-turn-notified")
     unset_option(pane, "@cc-waiting-tool")
     # Full clear: also drop the cache markers, so a manual reset recovers a
     # window left with a stale countdown timer (@cc-cache-ts) or cold-cache
@@ -846,29 +988,94 @@ def _append_touched_file(session_id: str, file_path: str) -> None:
     _append_line(path, file_path + "\n", "touched-log")
 
 
-# Tools that run in the background only when asked to via run_in_background.
-# Workflow is background always and is special-cased in _is_background_launch.
+# Tools that can run in the background. Workflow always does; the others are
+# detected from the tool RESULT, not the input — see _bg_launch.
 BACKGROUND_CAPABLE_TOOLS = {"Agent", "Bash"}
+# Ids in the result that identify a launched background task, best first.
+BG_RESULT_ID_KEYS = ("backgroundTaskId", "agentId", "taskId", "task_id", "runId")
+# Both ids a <task-notification> carries: <tool-use-id> matches our marker
+# filename, <task-id> matches the recorded alt id. Either one retires the task.
+NOTIFICATION_ID_RE = re.compile(
+    r"<(?:task-id|tool-use-id)>\s*([^<\s]+)\s*</(?:task-id|tool-use-id)>"
+)
 
 
-def _is_background_launch(payload: dict) -> bool:
-    """True when this PostToolUse is a background-task LAUNCH, not a completion.
+def _bg_launch(payload: dict) -> tuple[str, str, str] | None:
+    """Return (marker_key, kind, alt_id) when this PostToolUse LAUNCHED a
+    background task, else None.
 
-    Covers every tool whose completion later re-invokes Claude with a no-prompt
-    Stop (the retirement signal in action_done): Workflow (always background)
-    and Agent / Bash called with run_in_background=true. Blocking calls of the
-    same tools keep the turn open — the tab stays blue on @cc-status alone — so
-    they are not counted.
+    Detected from the tool RESULT, because the input flag is not reliable: the
+    harness backgrounds `Agent` by DEFAULT, so `run_in_background` is simply
+    absent from tool_input on every async agent dispatch — the old input-flag
+    test therefore never counted a single agent, while completions still retired
+    them, and the marker could only ever go down. The result is unambiguous:
+      Agent (async)  -> {"isAsync": true, "status": "async_launched", "agentId": …}
+      Bash (backgrounded) -> {"backgroundTaskId": "bexhstrat", …}
+      Workflow       -> always background
+    A blocking call keeps the turn open (the tab stays blue on @cc-status) and
+    must NOT be counted, hence the strict async test for Agent.
     """
     tool = payload.get("tool_name", "")
+    resp = payload.get("tool_response")
+    alt = ""
+    is_async = False
+    if isinstance(resp, dict):
+        for k in BG_RESULT_ID_KEYS:
+            v = resp.get(k)
+            if isinstance(v, str) and v:
+                alt = v
+                break
+        is_async = bool(resp.get("isAsync")) or resp.get("status") == "async_launched"
+    elif isinstance(resp, str):
+        m = re.search(r"agentId:\s*([A-Za-z0-9_-]+)", resp)
+        if m:
+            alt = m.group(1)
+            is_async = "async" in resp[:200].lower()
+
     if tool == "Workflow":
-        return True
-    if tool in BACKGROUND_CAPABLE_TOOLS:
-        return bool((payload.get("tool_input") or {}).get("run_in_background"))
-    return False
+        backgrounded = True
+    elif tool == "Bash":
+        backgrounded = bool(alt) or bool(
+            (payload.get("tool_input") or {}).get("run_in_background")
+        )
+    elif tool == "Agent":
+        backgrounded = is_async
+    else:
+        backgrounded = False
+    if not backgrounded:
+        return None
+
+    key = payload.get("tool_use_id") or alt
+    if not key:
+        log(f"bg: {tool} launch with no id to key on; skipped")
+        return None
+    return key, tool, alt
+
+
+def _notification_ids(prompt: str) -> set[str]:
+    """Every task/tool-use id mentioned by the <task-notification> blocks.
+
+    Parses ALL blocks, not just the first: two background tasks finishing at
+    once can be batched into a single re-invocation, which the old
+    one-decrement-per-Stop rule undercounted (leaving the marker stuck on).
+    """
+    if "<task-notification>" not in prompt:
+        return set()
+    return set(NOTIFICATION_ID_RE.findall(prompt))
 
 
 def action_waiting(pane: str, payload: dict) -> None:
+    # An idle_prompt Notification means "this session has been quiet for a
+    # minute", NOT "Claude asked you something" — it fires ~60s after every
+    # turn end. While background work is in flight the violet marker is the
+    # truer story ("waiting on its own agents"), and since waiting outranks the
+    # violet colour, letting idle through repainted a busy-with-agents tab as
+    # needs-you grey. Real requests (PermissionRequest, elicitation_dialog)
+    # still win. Cache-ts is deliberately left alone here too: idle fires no
+    # API call, so it must not extend the cache countdown.
+    if payload.get("notification_type") == "idle_prompt" and _bg_entries(pane):
+        log("waiting: idle_prompt suppressed, background work in flight")
+        return
     # The model just made an API call that needs you (permission / idle prompt),
     # so the cache was read moments ago — anchor the idle clock here too.
     _touch_cache_ts(pane)
@@ -889,28 +1096,50 @@ def action_waiting(pane: str, payload: dict) -> None:
 
 
 def action_tool_completed(pane: str, payload: dict) -> None:
-    # A tool finished; the next API call (which re-reads the cache) is imminent.
-    _touch_cache_ts(pane)
-
-    # Background launches return immediately, so this PostToolUse fires at
-    # LAUNCH, not at completion: the Workflow tool is always background, and
-    # Agent / Bash are when called with run_in_background. Mark the task in
-    # flight → the tab takes the background-work colour so the turn's grey "done" look still says
-    # "Claude is waiting on ITS OWN work, not on you". It's retired later in
-    # action_done, when the completion re-invocation ends with a no-prompt Stop.
-    if _is_background_launch(payload):
-        _bump_workflow(pane, +1)
-    # When the tool that asked for permission finishes, the `waiting` state is
-    # resolved — revert to working. Force-set because severity would block the
-    # waiting→working transition. Matched by tool NAME (@cc-waiting-tool, set
-    # in action_waiting): completions of OTHER tools — parallel agents'
-    # Bash/Read flurries — must not clear a question still on screen. When no
-    # name was recorded (idle Notification), any completion reverts, as before.
-    if get_option(pane, "@cc-status") == "waiting":
-        waiting_tool = get_option(pane, "@cc-waiting-tool")
-        if not waiting_tool or waiting_tool == payload.get("tool_name"):
+    status = get_option(pane, "@cc-status")
+    waiting_tool = get_option(pane, "@cc-waiting-tool") if status == "waiting" else ""
+    # The one completion we can attribute with certainty: the very tool that
+    # asked for permission finishing means the question is answered.
+    permission_resolved = bool(waiting_tool) and waiting_tool == payload.get("tool_name")
+    # A background agent inherits TMUX_PANE, so ITS tool completions fire this
+    # hook on the PARENT's window. Between the parent's turns it has no tools of
+    # its own — so a completion arriving while background work is live and the
+    # parent's turn is already over (done/waiting) belongs to a subagent, and
+    # must not touch the shared state. That leak was what repainted an
+    # idle-waiting-on-agents tab as blue "working" (and kept nudging the cache
+    # countdown) for minutes on end while the parent sat idle.
+    subagent_noise = (
+        status in ("done", "waiting") and not permission_resolved and bool(_bg_entries(pane))
+    )
+    if subagent_noise:
+        log(f"tool-completed: ignoring subagent {payload.get('tool_name')} (status={status})")
+    else:
+        # A tool finished; the next API call (which re-reads the cache) is imminent.
+        _touch_cache_ts(pane)
+        # Background launches return immediately, so this PostToolUse fires at
+        # LAUNCH, not at completion (see _bg_launch for how that's detected).
+        # Record the task as in flight → the tab takes the background-work
+        # colour, so the turn's grey "done" look still says "Claude is waiting on
+        # ITS OWN work, not on you". Retired by id when its <task-notification>
+        # arrives (action_prompt_submit), or via the Workflow fallback in
+        # action_done.
+        launch = _bg_launch(payload)
+        if launch:
+            _bg_add(pane, *launch)
+        # When the tool that asked for permission finishes, the `waiting` state
+        # is resolved — revert to working. Force-set because severity would block
+        # the waiting→working transition. Matched by tool NAME (@cc-waiting-tool,
+        # set in action_waiting): completions of OTHER tools — parallel agents'
+        # Bash/Read flurries — must not clear a question still on screen. When no
+        # name was recorded (idle Notification), any completion reverts, as
+        # before — but only with no background work live, which the
+        # subagent_noise test above already guarantees here.
+        if status == "waiting" and (permission_resolved or not waiting_tool):
             set_option(pane, "@cc-status", "working")
             unset_option(pane, "@cc-waiting-tool")
+
+    # File edits are logged for EVERY completion, subagent ones included: the
+    # :ClaudeChanged / prefix+E list should show what background agents touched.
 
     # Log file edits so :ClaudeChanged / prefix+E can find them later, even
     # after they're committed (git status alone misses post-commit files).
@@ -1264,19 +1493,20 @@ def action_done(pane: str, payload: dict) -> None:
         return  # stale hook from prior session
     if not get_option(pane, "@cc-last-prompt-ts"):
         return  # no prompt seen in this session yet, defensive
-    # A turn that set no @cc-turn-had-prompt is a system re-invocation, not a
-    # user turn — a background task (Workflow, background Agent or Bash)
-    # finishing and reporting back. Empirically a Workflow completion fires no
-    # prompt-submit at all, while a background Bash/Agent completion fires one
-    # with a <task-notification> payload — which action_prompt_submit filters
-    # out, leaving had_prompt unset either way. Treat that Stop as one
-    # background task retiring from the background-work marker. User turns (had_prompt
-    # set) leave the count alone, so the marker survives the launching turn and
-    # any prompts sent while the run is still in flight.
+    # Background tasks are normally retired by id when their <task-notification>
+    # arrives (action_prompt_submit). Workflow is the exception — its completion
+    # fires no prompt-submit at all — so a Stop that is a system re-invocation
+    # (no @cc-turn-had-prompt) and whose turn retired nothing by id retires the
+    # oldest in-flight Workflow instead. Restricting the fallback to Workflow is
+    # what keeps unrelated system re-invocations (a /loop wake-up, a Monitor
+    # report) from silently retiring an agent that is still running.
     had_prompt = get_option(pane, "@cc-turn-had-prompt")
+    notified = get_option(pane, "@cc-turn-notified")
     unset_option(pane, "@cc-turn-had-prompt")
-    if not had_prompt:
-        _bump_workflow(pane, -1)
+    unset_option(pane, "@cc-turn-notified")
+    if not had_prompt and not notified:
+        _bg_remove_oldest(pane, {"Workflow"})
+    _bg_refresh(pane)
     action_set_state(pane, "done")
     # Turn just ended → the cache was last read now; the idle clock starts here.
     _touch_cache_ts(pane)
