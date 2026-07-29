@@ -3,10 +3,12 @@
 #   line 1: model | directory | git branch
 #   line 2: ⏱ session 5h | 📖 weekly Fable-scoped | 📅 weekly all-model | 🧠 context window
 #
-# Everything except the Fable-scoped weekly limit is carried on the statusline
-# stdin payload, so the common render costs one jq plus one git. The Fable cap
-# only exists in the OAuth usage endpoint's limits[] array, so that single value
-# is fetched out-of-band and cached pre-normalized.
+# The 5h / weekly / context values are carried on the statusline stdin payload,
+# so the common render costs one jq plus one git. Two gaps get filled from a
+# pre-normalized out-of-band cache (usage-fetcher.sh, one request per TTL for the
+# whole machine): the Fable cap is never on stdin at all, and the 5h / weekly
+# values are null there until the session's first API response. stdin wins
+# whenever it has a value; the cache only fills in.
 
 # Color theme
 C_RESET='\033[0m'
@@ -17,8 +19,9 @@ C_YELLOW='\033[38;5;136m'
 C_RED='\033[38;5;167m'
 
 BAR_W=6                                   # bar cells; 6 keeps pace buckets at ~17%
-FABLE_CACHE="/tmp/claude-fable-cache"     # "<percent> <reset_epoch> <fetched_epoch>"
-FABLE_TTL=60
+# "<u5h> <e5h> <u7d> <e7d> <ufable> <efable> <fetched_epoch>"
+LIMITS_CACHE="/tmp/claude-limits-cache"
+LIMITS_TTL=60
 FETCHER_SCRIPT="$HOME/.claude/scripts/usage-fetcher.sh"
 
 input=$(cat)
@@ -86,20 +89,36 @@ if [ -n "$branch" ]; then
     fi
 fi
 
-# --- Fable weekly limit (only value not present on stdin) ---
-ufb=-1 efb=-1 fetched=0
-if [ -f "$FABLE_CACHE" ]; then
-    read -r ufb efb fetched < "$FABLE_CACHE" 2>/dev/null
+# --- Cached limits (out-of-band) ---
+c5h=-1 ce5h=-1 c7d=-1 ce7d=-1 ufb=-1 efb=-1 fetched=0
+if [ -f "$LIMITS_CACHE" ]; then
+    read -r c5h ce5h c7d ce7d ufb efb fetched < "$LIMITS_CACHE" 2>/dev/null
 fi
-case "${ufb}${efb}${fetched}" in
-    ''|*[!0-9-]*) ufb=-1; efb=-1; fetched=0 ;;
-esac
-if [ "$now" -gt 0 ] && [ $(( now - fetched )) -ge "$FABLE_TTL" ]; then
+# The line is read positionally, so anything but seven integers — a partial
+# write, or a cache left by an older format — has to be discarded whole rather
+# than shifting values onto the wrong bars.
+cache_ok=1
+for v in "$c5h" "$ce5h" "$c7d" "$ce7d" "$ufb" "$efb" "$fetched"; do
+    case "$v" in
+        ''|*[!0-9-]*) cache_ok=0 ;;
+    esac
+done
+if [ "$cache_ok" -eq 0 ]; then
+    c5h=-1 ce5h=-1 c7d=-1 ce7d=-1 ufb=-1 efb=-1 fetched=0
+fi
+if [ "$now" -gt 0 ] && [ $(( now - fetched )) -ge "$LIMITS_TTL" ]; then
     # Re-stamp with the current values first to claim the fetch window, so
     # concurrent renders do not all spawn a fetcher.
-    printf '%s %s %s\n' "$ufb" "$efb" "$now" > "$FABLE_CACHE"
+    printf '%s %s %s %s %s %s %s\n' \
+        "$c5h" "$ce5h" "$c7d" "$ce7d" "$ufb" "$efb" "$now" > "$LIMITS_CACHE"
     bash "$FETCHER_SCRIPT" >/dev/null 2>&1 &
 fi
+
+# Fall back to the cache only where stdin has nothing — i.e. before this
+# session's first API response. Percent and reset move together as a pair so a
+# bar never pairs a live percent with a stale countdown.
+if [ "$u5h" -lt 0 ] && [ "$c5h" -ge 0 ]; then u5h=$c5h; e5h=$ce5h; fi
+if [ "$u7d" -lt 0 ] && [ "$c7d" -ge 0 ]; then u7d=$c7d; e7d=$ce7d; fi
 
 # --- Reset countdowns (whole minutes; -1 when unknown) ---
 if [ "$e5h" -gt 0 ] && [ "$now" -gt 0 ]; then r5h_min=$(( (e5h - now) / 60 )); else r5h_min=-1; fi
