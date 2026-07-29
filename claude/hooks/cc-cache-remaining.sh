@@ -1,9 +1,15 @@
 #!/bin/sh
 # Render the remaining Claude Code prompt-cache TTL as a tmux status segment.
 #
-# Invoked per-window from window-status-format in ~/.tmux.conf, gated so it
-# only renders while the session is idle (not while Claude is working):
-#   #{?#{==:#{@cc-status},working},,#(~/.claude/hooks/cc-cache-remaining.sh #{@cc-cache-ts})}
+# Invoked per-window from window-status-format in ~/.tmux.conf, in every state:
+#   #(~/.claude/hooks/cc-cache-remaining.sh #{@cc-cache-ts} #{@cc-status})
+#
+# $1 is the cache timestamp, $2 the pane's @cc-status. The marker is DRAWN
+# whatever the status — a cold cache is worth knowing about unconditionally — but
+# the sounds are held while the status is `working`: a cache expiring mid-turn is
+# not actionable (the turn's next API call reheats it either way), so an alert
+# there is pure nagging. See the tmux.conf comment for why the segment is no
+# longer gated off while working.
 #
 # @cc-cache-ts is set by ~/.claude/hooks/tmux-claude-hooks.py on every API-call
 # boundary (prompt submit, each tool result, waiting, turn end). The prompt
@@ -73,7 +79,16 @@ ALERT_DIR="$HOME/.claude/state/cc-cache-alerts"
 maybe_alert() {
     remaining="$1"
     ts="$2"
+    status="$3"
     [ "${CC_CACHE_ALERTS:-1}" = "0" ] && return 0
+    # Already cold: every threshold is behind us, so crossing them says nothing.
+    # This is what fired a phantom "2 minutes left" sound on lid-open — the first
+    # status render after a wake found the cache long dead, marked all three
+    # thresholds at once and played the most urgent of them. Nothing is left to
+    # warn about once the cache is gone; the red "● Nm" marker states it instead.
+    [ "$remaining" -le 0 ] && return 0
+    # Working: the countdown is real (see header) but not actionable mid-turn.
+    [ "$status" = "working" ] && return 0
     # Overrides default to empty so alert_sound_for can test them under `set -u`
     # semantics in any shell.
     CC_CACHE_ALERT_30M="${CC_CACHE_ALERT_30M:-}"
@@ -103,7 +118,8 @@ maybe_alert() {
 }
 
 ts="$1"
-[ -f /tmp/cc-cache-debug-on ] && printf '%s called ts=[%s]\n' "$(date +%H:%M:%S)" "$ts" >> /tmp/cc-cache-remaining.log
+status="$2"
+[ -f /tmp/cc-cache-debug-on ] && printf '%s called ts=[%s] status=[%s]\n' "$(date +%H:%M:%S)" "$ts" "$status" >> /tmp/cc-cache-remaining.log
 [ -z "$ts" ] && exit 0
 case "$ts" in *[!0-9]*) exit 0 ;; esac   # non-numeric guard
 
@@ -114,7 +130,7 @@ remaining=$(( ts + ttl - now ))
 
 # Sound the crossings before deciding what (if anything) to draw: the 30-minute
 # alert has to fire even on the render where the countdown first becomes visible.
-maybe_alert "$remaining" "$ts"
+maybe_alert "$remaining" "$ts" "$status"
 
 # Cold: the cache has expired. Show a persistent red marker with elapsed-since-
 # expiry so a blank tab unambiguously means "warm" — and you can see, before

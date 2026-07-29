@@ -1198,8 +1198,23 @@ def action_waiting(pane: str, payload: dict) -> None:
     # live agent stayed grey. Real requests (PermissionRequest,
     # elicitation_dialog) still set `waiting`. Cache-ts is left alone too: idle
     # fires no API call, so it must not extend the cache countdown.
+    # One thing it IS good for: proof that the main loop is NOT running. A turn
+    # that dies without a Stop hook — ESC, an API error (`API Error: Unable to
+    # connect to API (ENOTFOUND)` when the lid closes and the network drops) —
+    # leaves @cc-status latched on `working`, and the tab then sits blue for
+    # hours claiming Claude is busy. Claude cannot be at an idle prompt and busy
+    # at once, so an idle_prompt demotes `working` to `done`.
+    # `done`, deliberately, not `waiting`: `done` is tested BELOW @cc-workflow in
+    # window-status-format, so a pane with background agents still in flight goes
+    # violet rather than grey — the exact trap that made this handler ignore
+    # idle_prompt in the first place. And severity keeps it honest in the other
+    # direction: `done` (1) cannot overwrite a real `waiting`/`permission` (2/3).
     if payload.get("notification_type") == "idle_prompt":
-        log("waiting: idle_prompt ignored (no colour of its own)")
+        if get_option(pane, "@cc-status") == "working":
+            action_set_state(pane, "done")
+            log("waiting: idle_prompt cleared a stuck `working`")
+        else:
+            log("waiting: idle_prompt ignored (no colour of its own)")
         return
     # The model just made an API call that needs you (permission / idle prompt),
     # so the cache was read moments ago — anchor the idle clock here too.
