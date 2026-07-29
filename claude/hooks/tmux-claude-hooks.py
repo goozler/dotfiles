@@ -1577,13 +1577,23 @@ def _analyze_reheat(rows: list, truncated: bool) -> tuple:
 
 
 def _log_reheat(pane: str, payload: dict, tokens: int) -> None:
-    """Append one reheat record to REHEAT_LOG for later review."""
+    """Append one reheat record to REHEAT_LOG for later review.
+
+    `idle` is how long the session sat between the previous cache touch and the
+    prompt that paid for this reheat (@cc-prev-idle, recorded at prompt submit).
+    Without it a reheat record can't be told apart from a false positive, and
+    there is no way to check after the fact whether the countdown in the tab
+    should have been warning about it — which is the first question asked when a
+    turn burns half a million tokens unexpectedly.
+    """
     ts = datetime.now().isoformat(timespec="seconds")
     win = get_window_name(pane) or "?"
     sid = _resolve_session_id(pane, payload, "?")
+    idle = get_option(pane, "@cc-prev-idle") or "?"
     _append_line(
         REHEAT_LOG,
-        f"{ts}  reheat  tokens={tokens}  win={win}  pane={pane}  session={sid}\n",
+        f"{ts}  reheat  tokens={tokens}  idle={idle}s  "
+        f"win={win}  pane={pane}  session={sid}\n",
         "reheat-log",
     )
 
