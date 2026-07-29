@@ -9,6 +9,7 @@ Spec: ~/tmp/tmux-claude-attention/docs/specs/2026-06-03-tmux-claude-attention-de
 
 from __future__ import annotations
 
+import glob
 import json
 import os
 import re
@@ -104,7 +105,18 @@ FILE_TOUCHING_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 # feeds the status bar. Entries older than BG_STALE_SECONDS are garbage
 # collected on read, so a killed run cannot latch the marker forever.
 BG_STATE_DIR = os.path.join(TOUCHED_FILES_DIR, "cc-bg")
-BG_STALE_SECONDS = int(os.environ.get("CC_BG_STALE_SECONDS", str(6 * 3600)))
+# How long a task may go without a sign of life before it is presumed dead and
+# its marker dropped. Per kind, because the plausible runtimes differ by an
+# order of magnitude: a backgrounded shell command is minutes, an agent can
+# think for the better part of an hour, a Workflow fans out for longer still.
+# Before the marker is dropped, the task's own output file is checked for recent
+# writes (see _task_output_mtime) — so a long, quiet-but-alive task survives.
+# CC_BG_STALE_SECONDS overrides every kind with one value.
+BG_STALE_BY_KIND = {"Bash": 15 * 60, "Agent": 60 * 60, "Workflow": 6 * 3600}
+BG_STALE_DEFAULT = 60 * 60
+BG_STALE_OVERRIDE = os.environ.get("CC_BG_STALE_SECONDS")
+# Background tasks stream their output to <tmpdir>/<project>/<session>/tasks/<id>.output.
+BG_TASK_OUTPUT_GLOB = "/private/tmp/claude-*/*/*/tasks/%s.output"
 
 # --- Prompt-cache reheat detection -------------------------------------------
 # A "reheat" is a turn whose first API call re-created more context than it read
@@ -199,11 +211,42 @@ def _bg_key(raw: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", raw) or "unknown"
 
 
+def _bg_stale_after(kind: str) -> float:
+    """Seconds of silence after which a task of this kind is presumed dead."""
+    if BG_STALE_OVERRIDE:
+        try:
+            return float(BG_STALE_OVERRIDE)
+        except ValueError:
+            pass
+    return BG_STALE_BY_KIND.get(kind, BG_STALE_DEFAULT)
+
+
+def _task_output_mtime(alt: str) -> float:
+    """Last write to this task's output file, or 0.0 if there is none.
+
+    A task that is still producing output is alive no matter how old its marker
+    is, so this is checked before dropping one. Only consulted once the marker
+    has already gone quiet past its deadline — the glob is too costly to run on
+    every hook.
+    """
+    if not alt:
+        return 0.0
+    try:
+        return max(
+            (os.path.getmtime(p) for p in glob.glob(BG_TASK_OUTPUT_GLOB % alt)),
+            default=0.0,
+        )
+    except OSError:
+        return 0.0
+
+
 def _bg_entries(pane: str) -> list[tuple[str, str, str, float]]:
     """List in-flight background tasks as (key, kind, alt_id, mtime).
 
-    Stale entries (older than BG_STALE_SECONDS) are dropped here, so a killed
-    run or a crashed session cannot latch the marker on forever.
+    Entries that have shown no sign of life past their per-kind deadline are
+    dropped here — a task can die without ever notifying (killed run, crashed
+    session, or a task a SUBAGENT launched, whose notification goes to the
+    subagent and never to this pane), and nothing else would ever retire it.
     """
     d = _bg_dir(pane)
     out: list[tuple[str, str, str, float]] = []
@@ -216,16 +259,60 @@ def _bg_entries(pane: str) -> list[tuple[str, str, str, float]]:
         path = os.path.join(d, name)
         try:
             mtime = os.path.getmtime(path)
-            if now - mtime > BG_STALE_SECONDS:
-                os.unlink(path)
-                log(f"bg: dropped stale {name}")
-                continue
             with open(path, encoding="utf-8") as fh:
                 kind, _, alt = fh.read().strip().partition("\t")
         except OSError:
             continue
+        deadline = _bg_stale_after(kind)
+        if now - mtime > deadline:
+            out_mtime = _task_output_mtime(alt)
+            if now - out_mtime <= deadline:
+                # Still writing output — alive. Adopt its clock as ours.
+                mtime = out_mtime
+                try:
+                    os.utime(path, (out_mtime, out_mtime))
+                except OSError:
+                    pass
+            else:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+                log(f"bg: dropped dead {kind} {name} (silent {int(now - mtime)}s)")
+                continue
         out.append((name, kind, alt, mtime))
     return out
+
+
+def _bg_heartbeat(pane: str) -> None:
+    """Mark agent tasks as alive, evidenced by a subagent's tool activity.
+
+    A background agent's tool completions land on the parent's pane (they
+    inherit TMUX_PANE). We ignore them for colour, but they are proof that at
+    least one agent is still working, so they push the agents' deadline out.
+    Agents alone — a backgrounded shell command fires no hooks, and its liveness
+    is judged from its output file instead.
+
+    Reads the directory directly rather than going through _bg_entries: that one
+    garbage-collects as it lists, which would drop an overdue agent a moment
+    before this proof of life could rescue it. Evidence outranks a deadline.
+    """
+    now = time.time()
+    d = _bg_dir(pane)
+    try:
+        names = os.listdir(d)
+    except OSError:
+        return
+    for name in names:
+        path = os.path.join(d, name)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                kind = fh.read().strip().partition("\t")[0]
+            if kind != "Agent":
+                continue
+            os.utime(path, (now, now))
+        except OSError:
+            continue
 
 
 def _bg_refresh(pane: str) -> int:
@@ -1102,17 +1189,21 @@ def action_tool_completed(pane: str, payload: dict) -> None:
     # asked for permission finishing means the question is answered.
     permission_resolved = bool(waiting_tool) and waiting_tool == payload.get("tool_name")
     # A background agent inherits TMUX_PANE, so ITS tool completions fire this
-    # hook on the PARENT's window. Between the parent's turns it has no tools of
-    # its own — so a completion arriving while background work is live and the
-    # parent's turn is already over (done/waiting) belongs to a subagent, and
-    # must not touch the shared state. That leak was what repainted an
-    # idle-waiting-on-agents tab as blue "working" (and kept nudging the cache
-    # countdown) for minutes on end while the parent sat idle.
-    subagent_noise = (
-        status in ("done", "waiting") and not permission_resolved and bool(_bg_entries(pane))
-    )
+    # hook on the PARENT's window. Between turns the parent runs no tools of its
+    # own, so ANY completion arriving while its turn is already over
+    # (done/waiting) belongs to a subagent and must not touch the shared state.
+    # Two things went wrong before this test existed: subagent activity
+    # repainted an idle tab as blue "working" and kept nudging the cache
+    # countdown, and — worse — a background Bash launched BY a subagent got
+    # recorded as the parent's, then never retired, because its
+    # <task-notification> goes to the subagent that started it. The condition is
+    # deliberately not "…and background work is already live": the very first
+    # such launch happens with an empty marker directory, which is exactly how
+    # a tab got stuck violet for four hours.
+    subagent_noise = status in ("done", "waiting") and not permission_resolved
     if subagent_noise:
         log(f"tool-completed: ignoring subagent {payload.get('tool_name')} (status={status})")
+        _bg_heartbeat(pane)
     else:
         # A tool finished; the next API call (which re-reads the cache) is imminent.
         _touch_cache_ts(pane)
@@ -1528,7 +1619,21 @@ def action_done(pane: str, payload: dict) -> None:
         _log_reheat(pane, payload, tokens)
 
 
+def action_gc(pane: str, _payload: dict) -> None:
+    """Re-derive the background marker, dropping tasks that died silently.
+
+    Called from the status bar (see window-status-format), not by a Claude hook,
+    because hooks only fire while Claude is doing something: a task that dies
+    without notifying leaves the tab violet for as long as the session sits
+    idle — which is precisely when you are looking at the tab to decide whether
+    it needs you. Gated behind @cc-workflow in the format, so this runs only for
+    a window that actually has background work recorded.
+    """
+    _bg_refresh(pane)
+
+
 ACTIONS = {
+    "gc": action_gc,
     "prompt-submit": action_prompt_submit,
     "session-start": action_session_start,
     "session-end": action_session_end,
@@ -1559,6 +1664,14 @@ def main() -> int:
         return 0
     pane = os.environ.get("TMUX_PANE")
     if not pane:
+        return 0
+    # The status bar calls "gc" every few seconds and passes no payload — skip
+    # the stdin read and the log line so it stays as cheap as possible.
+    if action == "gc":
+        try:
+            action_gc(pane, {})
+        except Exception as e:
+            log(f"gc unhandled: {type(e).__name__}: {e}")
         return 0
     payload = read_stdin_json()
     # Stash the transcript path on the pane on every hook that carries one, so the
